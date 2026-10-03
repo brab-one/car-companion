@@ -64,6 +64,8 @@ def _check_faces(data, errors):
         return
     for name, mood in moods.items():
         path = f"moods.{name}"
+        if not ID.fullmatch(name):
+            errors.append(f"{path}: use small letters, digits, - and _ in mood names")
         if not _object(mood, path, errors):
             continue
         _known_keys(mood, MOOD_KEYS, path, errors)

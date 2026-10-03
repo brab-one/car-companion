@@ -26,6 +26,7 @@ const speech = document.querySelector('#speech');
 let speechTimer = 0;
 
 document.querySelector('#open-config').addEventListener('click', () => configure.open());
+document.querySelector('#edit-faces').addEventListener('click', () => configure.open('faces'));
 
 function configChanged(name) {
   phone.setConfig(app.config);
@@ -73,6 +74,7 @@ const handlers = {
     app.status = m;
     phone.setStatus(m);
     where.setStatus(m);
+    configure.setStatus(m);
   },
   car(m) {
     car.setCar(m);

@@ -69,6 +69,17 @@ class CompanionTest(unittest.TestCase):
             self.run_for(3)  # "fast" holds for 2 s
             self.assertEqual(self.brain.status["mood"], mood, f"at {speed} km/h")
 
+    def test_cold_oil_worries_him_while_driving(self):
+        self.send(type="sim_car", oil_c=30, speed_kmh=50)
+        self.run_for(1)
+        self.assertEqual(self.brain.status["mood"], "worried")
+        self.send(type="sim_car", speed_kmh=0)  # standing still comes first in rules.json
+        self.run_for(1)
+        self.assertEqual(self.brain.status["mood"], "happy")
+        self.send(type="sim_car", coolant_c=110)  # warnings come before everything
+        self.run_for(1)
+        self.assertEqual((self.brain.status["mood"], self.brain.animator.idle["play"]), ("worried", ["nervous"]))
+
     def test_standing_still_means_looking_around(self):
         self.send(type="sim_car", speed_kmh=0)
         self.run_for(10)

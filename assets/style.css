@@ -80,7 +80,7 @@ main {
 
 .buttons { display: flex; flex-wrap: wrap; gap: 6px; }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
-.row .hint { margin: 0; }
+.row .hint, .row h3 { margin: 0; }
 
 button, select, input, textarea {
   font: inherit;
@@ -187,8 +187,35 @@ dialog::backdrop { background: rgb(0 0 0 / 60%); }
 .message.warn { color: var(--warn); }
 .message.error { color: var(--error); }
 
+/* Faces tab */
+.faces { display: grid; grid-template-columns: 180px 1fr; gap: 16px; }
+.face-list .list { display: grid; gap: 6px; margin-bottom: 4px; }
+.face-list button { text-align: left; }
+.face-list input { width: 100%; }
+.displays.small canvas { width: 256px; border-width: 6px; }
+.face-controls { display: grid; gap: 6px; margin-top: 10px; }
+.face-row { display: grid; grid-template-columns: 190px 1fr 32px; align-items: center; gap: 10px; font-size: 14px; }
+.face-row > div { display: flex; align-items: center; gap: 8px; }
+.face-row input[type="range"] { flex: 1; accent-color: var(--accent); border: none; }
+.face-row input[type="number"] { width: 5em; }
+.face-row input[type="color"] { width: 60px; height: 30px; padding: 2px; }
+.face-row output { min-width: 2.5em; font-variant-numeric: tabular-nums; }
+button.reset { padding: 2px 6px; }
+
+/* Car data tab */
+.ranges { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ranges th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px; }
+.ranges td { padding: 3px 4px; border-top: 1px solid var(--line); }
+.ranges td input, .ranges td select { width: 100%; }
+.ranges td select { min-width: 115px; }
+.ranges td input[type="number"] { width: 6em; }
+.ranges td.other { color: var(--muted); font-size: 13px; }
+.ranges td.tools { white-space: nowrap; }
+.ranges td.tools button { padding: 2px 8px; }
+.ranges tr.live td:first-child { box-shadow: inset 3px 0 var(--ok); }
+
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; }
-  .places { grid-template-columns: 1fr; }
+  .places, .faces { grid-template-columns: 1fr; }
   .slider { grid-template-columns: 60px 1fr 110px; }
 }

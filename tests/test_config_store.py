@@ -98,8 +98,10 @@ class ConfigStoreTest(unittest.TestCase):
         faces = json.loads((CONFIG / "faces.json").read_text())
         faces["moods"]["happy"].update(heigth=30, color="green", w="wide")
         faces["default"] = "grumpy"
+        faces["moods"]["Very Sad"] = {}
         _, errors = check("faces", faces)
         text = "\n".join(errors)
+        self.assertIn("faces.json: moods.Very Sad: use small letters, digits, - and _ in mood names", text)
         self.assertIn("faces.json: moods.happy.heigth: unknown field", text)
         self.assertIn('faces.json: moods.happy.color: expected a colour like "#00E5FF", got "green"', text)
         self.assertIn('faces.json: moods.happy.w: expected a number, got "wide"', text)

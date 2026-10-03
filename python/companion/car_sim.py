@@ -6,8 +6,8 @@ with set() and plays scripted drives with start().
 
 Signs: g_long > 0 speeds up, < 0 brakes; g_lat < 0 is a left turn."""
 
-FIELDS = {"ignition": True, "speed_kmh": 0.0, "rpm": 800.0, "oil_c": 20.0,
-          "coolant_c": 20.0, "g_long": 0.0, "g_lat": 0.0}
+FIELDS = {"ignition": True, "speed_kmh": 0.0, "rpm": 800.0, "oil_c": 90.0,
+          "coolant_c": 88.0, "g_long": 0.0, "g_lat": 0.0}  # a warm engine; "cold_start" shows the cold case
 LIMITS = {"speed_kmh": (0, 260), "rpm": (0, 8000), "oil_c": (-30, 160),
           "coolant_c": (-30, 140), "g_long": (-1.5, 1.5), "g_lat": (-1.5, 1.5)}
 

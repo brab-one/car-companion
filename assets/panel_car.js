@@ -81,13 +81,7 @@ export class CarPanel {
 
   #show(spec, value) {
     const row = this.rows[spec.field];
-    let text = `${value.toFixed(spec.step < 1 ? 2 : 0)} ${spec.unit}`;
-    if (spec.field === 'speed_kmh') {
-      const { slow_kmh: slow, fast_kmh: fast } = this.thresholds;
-      if (value < slow) text += ' · stopped';
-      else if (value > fast) text += ' · fast';
-    }
-    row.out.textContent = text;
+    row.out.textContent = `${value.toFixed(spec.step < 1 ? 2 : 0)} ${spec.unit}`;
     row.out.classList.toggle('alert', spec.field === 'rpm' && value >= this.thresholds.redline_rpm);
   }
 }

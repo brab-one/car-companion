@@ -29,7 +29,10 @@
           <h2>Phone app</h2>
           <div id="config-errors" class="errors"></div>
           <p id="status-line" class="status"></p>
-          <h3>Preview a mood</h3>
+          <div class="row">
+            <h3>Preview a mood</h3>
+            <button id="edit-faces" type="button">Edit faces…</button>
+          </div>
           <div id="moods" class="buttons"></div>
           <h3>Play an animation</h3>
           <div id="animations" class="buttons"></div>
@@ -87,13 +90,60 @@
       <div class="dialog-head">
         <h2>Configure</h2>
         <nav class="tabs">
-          <button type="button" data-tab="places" class="active">Places</button>
+          <button type="button" data-tab="faces" class="active">Faces</button>
+          <button type="button" data-tab="ranges">Car data</button>
+          <button type="button" data-tab="places">Places</button>
           <button type="button" data-tab="files">Files</button>
         </nav>
         <button id="close-config" type="button" aria-label="Close">✕</button>
       </div>
 
-      <div id="tab-places" class="tab-pane">
+      <div id="tab-faces" class="tab-pane">
+        <div class="faces">
+          <div class="face-list">
+            <div id="face-list" class="list"></div>
+            <div class="row">
+              <input id="face-new-name" placeholder="new mood name" />
+              <button id="face-add" type="button">+ Add</button>
+            </div>
+          </div>
+          <div class="face-editor">
+            <div id="face-preview" class="displays small"></div>
+            <div class="row">
+              <label class="check"><input type="radio" name="face-side" value="both" checked /> Both eyes</label>
+              <label class="check"><input type="radio" name="face-side" value="left" /> Left eye only</label>
+              <label class="check"><input type="radio" name="face-side" value="right" /> Right eye only</label>
+            </div>
+            <div id="face-controls" class="face-controls"></div>
+            <div class="row">
+              <button id="face-save" type="button" class="primary">Save faces</button>
+              <button id="face-revert" type="button">Revert</button>
+              <button id="face-delete" type="button" class="danger">Delete this mood</button>
+            </div>
+            <pre id="face-message" class="message"></pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-ranges" class="tab-pane" hidden>
+        <p class="hint">Which face goes with which car values. When several rows match, the highest one decides the
+          face; ↑ ↓ change the order. "From" counts in, "to" does not; leave one empty for no limit.
+          Rows that are active right now are marked.</p>
+        <table class="ranges">
+          <thead>
+            <tr><th>Car value</th><th>From</th><th>To</th><th>Face</th><th>Eyes</th><th>Says (when it starts)</th><th></th></tr>
+          </thead>
+          <tbody id="range-rows"></tbody>
+        </table>
+        <div class="row">
+          <button id="range-add" type="button">+ Add range</button>
+          <button id="range-save" type="button" class="primary">Save</button>
+          <button id="range-revert" type="button">Revert</button>
+        </div>
+        <pre id="range-message" class="message"></pre>
+      </div>
+
+      <div id="tab-places" class="tab-pane" hidden>
         <div class="places">
           <div class="place-list">
             <div id="place-list" class="list"></div>

@@ -19,19 +19,23 @@ phone app, the car (OBD dongle) and the phone's GPS.
 
 ## What he does
 
-| Situation | Face |
+| Situation (first match wins) | Face |
 |---|---|
-| Standing still or crawling (below `slow_kmh`, 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
-| Driving normally | neutral, an occasional glance |
-| Fast (above `fast_kmh`, 100 km/h) | angry |
-| Board shaken (Modulino Movement above `shake_g`) | angry, "Hey, stop shaking me!" |
-| Cold oil at high revs, hot coolant | worried, with a warning |
-| Hard braking, redline | surprised |
+| Cold oil (below 80 °C) at high revs (above 4500 rpm) | worried, nervous glances, "Easy, the oil is still cold." |
+| Coolant from 105 °C | worried, nervous glances, a warning |
+| Speed from 100 km/h | angry |
+| Board shaken (Modulino Movement from 0.35 g) | angry, "Hey, stop shaking me!" |
+| Standing still or crawling (below 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
+| Driving with cold oil (below 50 °C) | worried |
+| Anything else | neutral, an occasional glance |
+| Hard braking, redline | surprised for a moment |
 | Entering a place | its picture for a few seconds, and a line |
 | Ignition off | falls asleep; the display goes off 20 s later |
 
-He blinks every few seconds (`blink_s` of the mood). All of this is set in
-the config files below; nothing is hard-coded.
+He blinks every few seconds (`blink_s` of the mood; worried blinks more).
+All of this is set in the config files; nothing is hard-coded. The easy way
+to change it is the Configure dialog in the simulator: **Faces** for how each
+mood looks, **Car data** for which face goes with which car values.
 
 ## Run it on your PC
 
@@ -45,13 +49,22 @@ With `--lan` you can also open it on your phone (same Wi-Fi, your PC's address).
 The page:
 
 - **Display**: the OLED, pixel for pixel, with what he says underneath.
-- **Phone app**: what he is doing and why (mood, active rules), buttons to preview moods and animations.
+- **Phone app**: what he is doing and why (mood, active rules), buttons to preview moods and
+  animations, and "Edit faces…".
 - **Car**: ignition, speed and the other values, scenarios, and "Shake the board" in place of the motion sensor.
 - **Location**: click the map to put the car there, jump to a place, type coordinates,
   or draw a route and drive it at the Car panel's speed (up to 60× faster than real time).
   Dashed circles show where a place is left again.
 - **Log**: rules turning on and off, places, warnings, and his lines.
-- **Configure** (top right): add and edit places with their pictures, and edit any config file.
+- **Configure** (top right):
+  - **Faces**: pick a mood and shape it with sliders (width, height, roundness, slant, smile cut,
+    colour, spacing, blinking) while the preview draws it exactly like the display. Change both
+    eyes or one; ↺ goes back to the default mood's value. Add and delete moods.
+  - **Car data**: a table of ranges, e.g. "Speed from 100 km/h → angry" or "Oil to 50 °C →
+    worried", with what the eyes do (as usual, look around, nervous) and an optional line. The
+    highest matching row wins; ↑ ↓ change the order. Active rows are marked while you test.
+  - **Places**: add and edit places with their pictures.
+  - **Files**: edit any config file as JSON.
 
 The map needs internet (Leaflet and OpenStreetMap); the rest works without.
 
@@ -126,10 +139,12 @@ keeps running on the last good version (`config/.good/`), or on the built-in
 defaults. Names one file uses from another (an unknown mood in a rule, a
 missing picture) are reported as warnings.
 
-### Add a mood (faces.json)
+### Add or change a mood (faces.json)
 
-A mood inherits everything from the default mood (`neutral`) and only lists
-what changes:
+Easiest in the simulator: Configure, Faces (or "Edit faces…" in the Phone app
+panel). Type a name and press Add to start from the mood you have selected,
+shape it with the sliders, and save. By hand: a mood inherits everything from
+the default mood (`neutral`) and only lists what changes:
 
 ```json
 "sad": {"h": 30, "slant": -14, "color": "#5AA0FF"}
@@ -172,6 +187,14 @@ mood (otherwise the eyes return to the rules' mood and to the middle).
 `blink`, `double_blink`, `wake_up` and `sleep` are used by the companion itself.
 
 ### Add a rule (rules.json)
+
+For a face that goes with a range of one car value, use the simulator:
+Configure, Car data, Add range. Pick the value (speed, RPM, oil, coolant,
+braking, cornering, board shaken), set "from" and/or "to", the face, what the
+eyes do and an optional line, move the row to where it belongs, and save.
+Each row becomes a rule like `{"id": "speed_angry", "when": ["speed_kmh >= 100"], "mood": "angry"}`.
+
+For anything else, write the rule by hand (or under Configure, Files):
 
 ```json
 {"id": "cold_oil_rev", "when": ["oil_c < $oil_warm_c", "rpm > 4500"], "mood": "worried",

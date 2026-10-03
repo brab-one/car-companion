@@ -1,23 +1,20 @@
 {
   "version": 1,
   "rules": [
-    {"id": "cold_oil_rev", "note": "Warnings first: the first active rule decides the mood.",
-     "when": ["oil_c < $oil_warm_c", "rpm > 4500"], "mood": "worried",
+    {"id": "cold_oil_rev", "note": "Warnings first: the first active rule decides the face.",
+     "when": ["oil_c < $oil_warm_c", "rpm > 4500"], "mood": "worried", "idle": {"play": ["nervous"], "every_s": [0.3, 1]},
      "say": "Easy, the oil is still cold.", "level": 1, "cooldown_s": 120},
-    {"id": "hot_coolant", "when": ["coolant_c > $coolant_hot_c"], "mood": "worried",
+    {"id": "hot_coolant", "when": ["coolant_c >= 105"], "mood": "worried", "idle": {"play": ["nervous"], "every_s": [0.3, 1]},
      "say": "The coolant is getting hot.", "level": 1, "cooldown_s": 300},
-    {"id": "fast", "note": "Car speed comes before the Modulino.",
-     "when": ["speed_kmh > $fast_kmh"], "mood": "angry", "hold_s": 2,
-     "say": "Slow down, please.", "level": 3, "cooldown_s": 120},
-    {"id": "shaken", "note": "Modulino Movement: shaking the board.",
-     "when": ["motion_g > $shake_g"], "mood": "angry", "hold_s": 2,
-     "say": "Hey, stop shaking me!", "level": 2, "cooldown_s": 30},
-    {"id": "stopped", "note": "Standing still or crawling: happy, looking around.",
-     "when": ["speed_kmh < $slow_kmh"], "mood": "happy",
+    {"id": "fast", "note": "Car speed comes before the Modulino.", "when": ["speed_kmh >= 100"], "mood": "angry",
+     "hold_s": 2, "say": "Slow down, please.", "level": 3, "cooldown_s": 120},
+    {"id": "shaken", "note": "Modulino Movement: shaking the board.", "when": ["motion_g >= 0.35"], "mood": "angry",
+     "hold_s": 2, "say": "Hey, stop shaking me!", "level": 2, "cooldown_s": 30},
+    {"id": "stopped", "note": "Standing still or crawling.", "when": ["speed_kmh < 5"], "mood": "happy",
      "idle": {"play": ["look_around"], "every_s": [0.5, 2]}},
-    {"id": "hard_brake", "when": ["g_long < -0.7"], "play": "surprised",
-     "say": "Whoa!", "level": 2, "cooldown_s": 20},
-    {"id": "redline", "when": ["rpm >= $redline_rpm"], "play": "surprised",
-     "say": "Redline!", "level": 3, "cooldown_s": 30}
+    {"id": "cold_oil", "note": "Driving with cold oil.", "when": ["oil_c < 50"], "mood": "worried",
+     "say": "Let's take it easy until the oil is warm.", "level": 2, "cooldown_s": 600},
+    {"id": "hard_brake", "when": ["g_long < -0.7"], "play": "surprised", "say": "Whoa!", "level": 2, "cooldown_s": 20},
+    {"id": "redline", "when": ["rpm >= $redline_rpm"], "play": "surprised", "say": "Redline!", "level": 3, "cooldown_s": 30}
   ]
 }
