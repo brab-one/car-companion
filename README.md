@@ -380,3 +380,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 - **GPS from the phone**: the same `location` message the map sends now.
 - **Brightness from sunrise/sunset**: `Companion._brightness()`.
 - **AI chat and voice**: a `chat` message, and speaking the `say` messages.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
