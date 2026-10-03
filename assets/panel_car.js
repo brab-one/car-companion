@@ -62,7 +62,7 @@ export class CarPanel {
     }
     this.ignition.checked = car.ignition;
     this.motion.textContent = car.motion_g == null
-      ? 'no data (no sensor on this computer)'
+      ? 'no data (no Modulino Movement connected)'
       : `${car.motion_g.toFixed(2)} g${car.sensor ? ' from the sensor' : ' (simulated)'}`;
     for (const b of this.scenarios.children) b.classList.toggle('active', b.dataset.name === car.scenario);
   }
