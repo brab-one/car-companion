@@ -6,8 +6,8 @@ When a file is broken, the companion uses, in this order:
   2. config/.good/<name>.json, the last version that passed the checks,
   3. the built-in defaults in defaults.py.
 
-poll() notices files that changed on disk (edited by hand, copied with rsync,
-or saved by the app), so changes apply without a restart."""
+poll() notices files that changed on disk (edited by hand, copied by
+deploy.sh, or saved by the app), so changes apply without a restart."""
 
 import copy
 import json

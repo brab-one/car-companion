@@ -17,7 +17,7 @@ ui = WebUI()
 
 
 def send(msg, to=None):
-    ui.send_message(CHANNEL, msg, room=to)
+    ui.send_message(CHANNEL, msg, to)  # to: a client's id, or None for all clients
 
 
 brain = Companion(CONFIG_DIR, send)

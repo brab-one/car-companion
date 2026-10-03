@@ -28,20 +28,24 @@ With `--lan` you can also open it on your phone (same Wi-Fi, your PC's address).
 
 ## Run it on the board
 
-One-time setup:
-
-- Set a Linux password for the board in App Lab (needed for SSH).
-- Install rsync on the board: `ssh arduino@<board-name>.local sudo apt install rsync`
-
-Then, after each change:
+Connect the board to this PC with its USB-C cable, then:
 
 ```bash
-tools/deploy.sh arduino@<board-name>.local
+tools/deploy.sh
 ```
 
-Start or restart **Car Companion** in App Lab and open
-`http://<board-name>.local:7000`. Config files already on the board are kept;
-add `--config` to overwrite them with yours.
+It copies the app over the cable (adb, no Wi-Fi or password needed), restarts
+it on the board and makes the board's page available at http://localhost:7001.
+When the board is on your Wi-Fi, the page is also at `http://<board's IP>:7000`,
+for example on your phone. Config files already on the board are kept; add
+`--config` to overwrite them with yours. The app also shows up in App Lab as
+**Car Companion**.
+
+The board's log:
+
+```bash
+adb shell arduino-app-cli app logs /home/arduino/ArduinoApps/car-companion
+```
 
 ## Tests
 
