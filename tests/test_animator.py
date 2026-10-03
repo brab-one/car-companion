@@ -92,6 +92,16 @@ class AnimatorTest(unittest.TestCase):
         shape, _, blink = self.anim.update(self.now)
         self.assertEqual((shape["left"]["h"], blink), (10, 1.0))
 
+    def test_steps_can_move_the_visor_and_its_glint(self):
+        self.wake()
+        self.anim.play([{"visor": 1.1, "ms": 100}, {"glint": 1.4, "ms": 100}], self.now)
+        frames = self.run_for(0.25)
+        self.assertAlmostEqual(max(f[0]["visor"] for f in frames), 1.1)
+        self.assertAlmostEqual(max(f[0]["glint"] for f in frames), 1.4)
+        self.run_for(1)  # the animation ends: back to the mood's visor (up) and resting glint
+        shape = self.anim.update(self.now)[0]
+        self.assertEqual((shape["visor"], shape["glint"]), (0, 0.2))
+
     def test_repeat_and_nested_animations_expand(self):
         steps = self.anim._expand({"steps": [{"anim": "double_blink"}, {"hold_ms": 10, "repeat": 3}]}, 0)
         self.assertEqual(len(steps), 4 + 3)

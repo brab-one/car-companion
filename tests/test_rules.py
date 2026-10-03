@@ -40,6 +40,16 @@ class RulesTest(unittest.TestCase):
             fired += [t for _, f in r.update({"g_long": g}, t) if f]
         self.assertEqual(fired, [0, 30])
 
+    def test_rules_that_end_are_listed_once(self):
+        r = rules({"id": "fast", "when": ["speed_kmh >= 90"], "mood": "racing", "hold_s": 8, "play_end": "visor_up"})
+        r.update({"speed_kmh": 95}, 0)
+        r.update({"speed_kmh": 60}, 1)
+        self.assertEqual(r.ended, [])  # still held
+        r.update({"speed_kmh": 60}, 8.5)
+        self.assertEqual([x.id for x in r.ended], ["fast"])
+        r.update({"speed_kmh": 60}, 9)
+        self.assertEqual(r.ended, [])
+
     def test_missing_signal_makes_condition_false(self):
         r = rules({"id": "shaken", "when": ["motion_g > 0.3"], "mood": "angry"})
         self.assertEqual(r.update({"motion_g": None}, 0), [])

@@ -15,6 +15,7 @@ const SLIDERS = [
 ];
 const HOLD_MS = 800; // after you move a slider, values from the companion wait this long
 const SHAKE = { g: 1.0, s: 2 }; // what "Shake the board" pretends the sensor measures
+const SEND_MS = 30; // slider messages while dragging: at most about 30 a second
 
 export class CarPanel {
   constructor(root, send) {
@@ -67,14 +68,14 @@ export class CarPanel {
     for (const b of this.scenarios.children) b.classList.toggle('active', b.dataset.name === car.scenario);
   }
 
-  // Sliders send at most one message per animation frame while you drag.
+  // Sliders send at most one message every SEND_MS while you drag.
   #queue(field, value) {
     if (!this.pending) {
       this.pending = {};
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         this.send({ type: 'sim_car', ...this.pending });
         this.pending = null;
-      });
+      }, SEND_MS);
     }
     this.pending[field] = value;
   }

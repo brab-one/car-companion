@@ -4,7 +4,7 @@ A rule is active while all its "when" conditions are true, and hold_s seconds
 longer. While active, its "mood" and "idle" apply; when several active rules
 have one, the first in the file wins, so the order is the priority. When a
 rule becomes active, its "play" animation and "say" line fire, at most once
-per cooldown_s.
+per cooldown_s; when it stops being active, its "play_end" animation plays.
 
 A condition reads "<signal> <op> <value>", e.g. "speed_kmh > 100" or
 "oil_c < $oil_warm_c", where $name is one of the thresholds in settings.json.
@@ -53,6 +53,7 @@ class Rule:
         self.id = spec["id"]
         self.conditions = [parse_condition(c, thresholds) for c in spec["when"]]
         self.active = False
+        self.ended = False  # stopped being active in the last update
         self.true_until = -math.inf
         self.last_fired = -math.inf
 
@@ -62,6 +63,7 @@ class Rule:
             self.true_until = now + self.spec.get("hold_s", 0)
         was_active = self.active
         self.active = now <= self.true_until
+        self.ended = was_active and not self.active
         cooldown = self.spec.get("cooldown_s", DEFAULT_COOLDOWN_S)
         if self.active and not was_active and now - self.last_fired >= cooldown:
             self.last_fired = now
@@ -76,6 +78,7 @@ class Rules:
     def __init__(self, rules_cfg, thresholds, previous=None):
         old = {rule.id: rule for rule in previous.rules} if previous else {}
         self.rules = []
+        self.ended = []
         for spec in rules_cfg["rules"]:
             try:
                 rule = Rule(spec, thresholds)
@@ -87,12 +90,14 @@ class Rules:
             self.rules.append(rule)
 
     def update(self, signals, now):
-        """Returns the active rules in file order, each as (rule, fired_just_now)."""
+        """Returns the active rules in file order, each as (rule, fired_just_now).
+        Afterwards self.ended lists the rules that just stopped being active."""
         result = []
         for rule in self.rules:
             fired = rule.update(signals, now)
             if rule.active:
                 result.append((rule, fired))
+        self.ended = [rule for rule in self.rules if rule.ended]
         return result
 
 

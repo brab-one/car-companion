@@ -23,7 +23,7 @@ phone app, the car (OBD dongle) and the phone's GPS.
 |---|---|
 | Cold oil (below 80 °C) at high revs (above 4500 rpm) | worried, nervous glances, "Easy, the oil is still cold." |
 | Coolant from 105 °C | worried, nervous glances, a warning |
-| Speed from 90 km/h | racing: his visor slides down over his eyes, and back up when he slows down |
+| Speed from 90 km/h | racing: he glances up, his visor slams down with a bounce and a glint sweeps across it; focused eyes behind it. 8 s after he drops below 90 km/h it lifts again (his eyes follow it up, then a relieved double blink) |
 | Board shaken (Modulino Movement from 0.35 g) | angry, "Hey, stop shaking me!" |
 | Standing still or crawling (below 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
 | Driving with cold oil (below 50 °C) | worried |
@@ -62,8 +62,10 @@ The page:
     both eyes or one; ↺ goes back to the default mood's value. Add and delete moods. With the
     visor down, the visor's own look (tint, reflection, darkness, size) can be changed too.
   - **Car data**: a table of ranges, e.g. "Speed from 90 km/h → racing" or "Oil to 50 °C →
-    worried", with what the eyes do (as usual, look around, nervous) and an optional line. The
-    highest matching row wins; ↑ ↓ change the order. Active rows are marked while you test.
+    worried", with what the eyes do (as usual, look around, nervous, focused), how many seconds
+    a row is kept after the value leaves its range, and an optional line. "⋯" sets the animations
+    played when a row starts and when it ends. The highest matching row wins; ↑ ↓ change the
+    order. Active rows are marked while you test.
   - **Places**: add and edit places with their pictures.
   - **Files**: edit any config file as JSON.
 
@@ -182,6 +184,8 @@ changes what it names, smoothly from where the eyes are:
 | `mood` | Change to this mood. |
 | `look` | `[x, y]` from -1 to 1 (right and down are positive), `"center"`, or `"random"` (any spot up to the corners). |
 | `blink` | Eyelids: 0 open, 1 closed. |
+| `visor` | Move the visor on its own: 0 up, 1 down, up to 1.2 to bounce past its place. |
+| `glint` | Move the visor's reflection across it: about -0.3 (gone left) to 1.4 (gone right); it rests at 0.2. |
 | `ms` | How long the change takes. |
 | `ease` | `linear`, `in` (slow start), `out` (fast start, soft stop: eye movements), `smooth` (default). |
 | `hold_ms` | Pause after the change. |
@@ -191,6 +195,9 @@ changes what it names, smoothly from where the eyes are:
 Any number can be `[min, max]` for a random value, e.g. `"hold_ms": [300, 1100]`.
 For the whole animation: `repeat`, and `"keep": true` to stay in its last
 mood (otherwise the eyes return to the rules' mood and to the middle).
+An animation that changes the shape (a mood, the visor or its glint) delays a
+mood change from the rules until it ends; that is how `visor_down` brings the
+visor down before the racing face takes over.
 `blink`, `double_blink`, `wake_up` and `sleep` are used by the companion itself.
 
 ### Add a rule (rules.json)
@@ -215,6 +222,7 @@ For anything else, write the rule by hand (or under Configure, Files):
 | `mood` | His mood while the rule is active. |
 | `idle` | What the eyes do meanwhile, e.g. `{"play": ["look_around"], "every_s": [0.5, 2]}`. |
 | `play` | An animation, played when the rule becomes active. |
+| `play_end` | An animation, played when the rule stops being active (after `hold_s`). |
 | `say` | A line, said when the rule becomes active. |
 | `level` | 1 important, 2 normal, 3 chatter. Said only up to `chattiness` in settings. |
 | `cooldown_s` | At least this long before `play` and `say` fire again (default 30). |

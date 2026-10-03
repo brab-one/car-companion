@@ -37,14 +37,16 @@ def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0, visor
     return {
         "kind": "eyes",
         "brightness": brightness,
-        "displays": [{"shapes": shapes, **({"visor": _visor(visor, down, scale)} if visor and down > 0 else {})}
+        "displays": [{"shapes": shapes,
+                      **({"visor": _visor(visor, down, scale, pair.get("glint", 0.2))} if visor and down > 0 else {})}
                      for shapes in displays],
     }
 
 
-def _visor(look, down, scale=1.0):
-    """The visor slides down from above the top edge; down = 1 is all the way down.
-    It belongs to the head, so it does not follow the eyes' look."""
+def _visor(look, down, scale=1.0, glint=0.2):
+    """The visor slides down from above the top edge; down = 1 is all the way down
+    (a little more makes it bounce). It belongs to the head, so it does not follow
+    the eyes' look. glint: where its reflection is, across the visor."""
     h = round(look["h"] * scale)
     w = min(SIZE, round(look["w"] * scale))
     lowest = SIZE / 2 + (look["y"] - SIZE / 2) * scale
@@ -58,6 +60,7 @@ def _visor(look, down, scale=1.0):
         "color": look["color"],
         "alpha": look["alpha"],
         "shine": look["shine"],
+        "glint": round(glint, 3),
     }
 
 

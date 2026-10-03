@@ -19,8 +19,8 @@ ID = re.compile(r"[a-z0-9_-]{1,40}")
 IMAGE_NAME = re.compile(r"[a-z0-9_-]{1,40}\.png")
 EYE_RANGES = {"w": (1, 128), "h": (1, 128), "r": (0, 64), "slant": (-64, 64), "cut": (0, 128)}
 MOOD_KEYS = (*EYE_KEYS, "gap", "blink_s", "visor", "left", "right")
-STEP_KEYS = ("mood", "look", "blink", "ms", "ease", "hold_ms", "repeat", "anim")
-RULE_KEYS = ("id", "note", "when", "mood", "idle", "play", "say", "level", "cooldown_s", "hold_s")
+STEP_KEYS = ("mood", "look", "blink", "visor", "glint", "ms", "ease", "hold_ms", "repeat", "anim")
+RULE_KEYS = ("id", "note", "when", "mood", "idle", "play", "play_end", "say", "level", "cooldown_s", "hold_s")
 PLACE_KEYS = ("id", "name", "lat", "lon", "radius_m", "image", "caption", "say", "show_s", "cooldown_min")
 
 
@@ -97,7 +97,8 @@ def _visor(visor, errors):
     if not _object(visor, "visor", errors):
         return
     _known_keys(visor, defaults.VISOR, "visor", errors)
-    for key, (lo, hi) in {"y": (0, 128), "w": (1, 128), "h": (1, 128), "r": (0, 64), "alpha": (0, 1)}.items():
+    for key, (lo, hi) in {"y": (0, 128), "w": (1, 128), "h": (1, 128), "r": (0, 64), "alpha": (0, 1),
+                          "glint": (-1, 2)}.items():
         _number(visor[key], f"visor.{key}", errors, lo, hi)
     for key in ("color", "shine"):
         if not (isinstance(visor[key], str) and HEX_COLOR.fullmatch(visor[key])):
@@ -143,8 +144,8 @@ def _steps(steps, path, errors):
         if not _object(step, p, errors):
             continue
         _known_keys(step, STEP_KEYS, p, errors)
-        if not any(k in step for k in ("mood", "look", "blink", "anim", "hold_ms")):
-            errors.append(f"{p}: a step needs mood, look, blink, anim or hold_ms")
+        if not any(k in step for k in ("mood", "look", "blink", "visor", "glint", "anim", "hold_ms")):
+            errors.append(f"{p}: a step needs mood, look, blink, visor, glint, anim or hold_ms")
         for key in ("mood", "anim"):
             if key in step and not isinstance(step[key], str):
                 errors.append(f"{p}.{key}: expected a name, got {_show(step[key])}")
@@ -152,6 +153,10 @@ def _steps(steps, path, errors):
             _look(step["look"], f"{p}.look", errors)
         if "blink" in step:
             _number(step["blink"], f"{p}.blink", errors, 0, 1)
+        if "visor" in step:
+            _number(step["visor"], f"{p}.visor", errors, 0, 1.2)  # above 1: a bounce past its place
+        if "glint" in step:
+            _number(step["glint"], f"{p}.glint", errors, -1, 2)
         for key in ("ms", "hold_ms"):
             if key in step:
                 _range(step[key], f"{p}.{key}", errors, 0, 60000)
@@ -197,7 +202,7 @@ def _check_rules(data, errors):
                     parse_condition(condition)
                 except ValueError as e:
                     errors.append(f"{path}.when[{j}]: {e}")
-        for key in ("mood", "play", "say", "note"):
+        for key in ("mood", "play", "play_end", "say", "note"):
             if key in rule and not isinstance(rule[key], str):
                 errors.append(f"{path}.{key}: expected text, got {_show(rule[key])}")
         if "idle" in rule:
@@ -208,8 +213,8 @@ def _check_rules(data, errors):
             _number(rule["cooldown_s"], f"{path}.cooldown_s", errors, 0, 86400)
         if "hold_s" in rule:
             _number(rule["hold_s"], f"{path}.hold_s", errors, 0, 3600)
-        if not any(k in rule for k in ("mood", "idle", "play", "say")):
-            errors.append(f"{path}: does nothing; give it a mood, idle, play or say")
+        if not any(k in rule for k in ("mood", "idle", "play", "play_end", "say")):
+            errors.append(f"{path}: does nothing; give it a mood, idle, play, play_end or say")
 
 
 def _idle(value, path, errors):
@@ -316,9 +321,9 @@ def cross_check(data, image_names):
         path = f"rules.json: rules.{rule['id']}"
         if "mood" in rule and rule["mood"] not in moods:
             warnings.append(f'{path}.mood: unknown mood "{rule["mood"]}"')
-        for name in [rule["play"]] if "play" in rule else []:
-            if name not in animations:
-                warnings.append(f'{path}.play: unknown animation "{name}"')
+        for key in ("play", "play_end"):
+            if key in rule and rule[key] not in animations:
+                warnings.append(f'{path}.{key}: unknown animation "{rule[key]}"')
         for name in rule.get("idle", {}).get("play", []):
             if name not in animations:
                 warnings.append(f'{path}.idle.play: unknown animation "{name}"')

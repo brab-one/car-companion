@@ -111,6 +111,14 @@ class ConfigStoreTest(unittest.TestCase):
         self.assertIn('faces.json: moods.happy.w: expected a number, got "wide"', text)
         self.assertIn('faces.json: default: "grumpy" is not one of the moods', text)
 
+    def test_animation_steps_can_bounce_the_visor_but_not_too_far(self):
+        anims = json.loads((CONFIG / "animations.json").read_text())
+        anims["animations"]["test"] = {"steps": [{"visor": 1.5}, {"glint": 3}]}
+        _, errors = check("animations", anims)
+        self.assertEqual(errors, [
+            "animations.json: animations.test.steps[0].visor: 1.5 is outside the allowed range 0 to 1.2",
+            "animations.json: animations.test.steps[1].glint: 3 is outside the allowed range -1 to 2"])
+
     def test_settings_only_need_what_they_change(self):
         self.write("settings.json", '{"fps": 20}')
         s = self.store()

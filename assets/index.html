@@ -127,11 +127,12 @@
 
       <div id="tab-ranges" class="tab-pane" hidden>
         <p class="hint">Which face goes with which car values. When several rows match, the highest one decides the
-          face; ↑ ↓ change the order. "From" counts in, "to" does not; leave one empty for no limit.
+          face; ↑ ↓ change the order. "From" counts in, "to" does not; leave one empty for no limit. "Keep" holds
+          a row that many seconds after the value left its range; ⋯ sets animations for when a row starts and ends.
           Rows that are active right now are marked.</p>
         <table class="ranges">
           <thead>
-            <tr><th>Car value</th><th>From</th><th>To</th><th>Face</th><th>Eyes</th><th>Says (when it starts)</th><th></th></tr>
+            <tr><th>Car value</th><th>From</th><th>To</th><th>Face</th><th>Eyes</th><th>Keep (s)</th><th>Says (when it starts)</th><th></th></tr>
           </thead>
           <tbody id="range-rows"></tbody>
         </table>

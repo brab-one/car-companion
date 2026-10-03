@@ -95,7 +95,7 @@ down, at least partly):
 
 ```json
 {"shapes": [...], "visor": {"x": 64, "y": 62, "w": 124, "h": 44, "r": 12,
-                            "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF"}}
+                            "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF", "glint": 0.2}}
 ```
 
 `x`, `y`, `w`, `h`, `r` place a rounded rectangle as for an eye (no slant, no
@@ -104,8 +104,8 @@ place. Drawing rule (`fillVisor()` in `render_canvas.js`): for each pixel of
 the rectangle, with `left = x - w/2`, `top = y - h/2` and
 `s = (px + 0.5 - left) + (py + 0.5 - top)` (the distance along a "/" diagonal):
 
-- reflection where `0.2*w <= s < 0.2*w + 5` or `0.2*w + 9 <= s < 0.2*w + 11`:
-  `shine` mixed over the pixel at 0.9;
+- reflection where `g <= s < g + 5` or `g + 9 <= s < g + 11`, with `g = glint * w`:
+  `shine` mixed over the pixel at 0.9 (`glint` moves the stripes across the visor);
 - everywhere else: `color` mixed over the pixel at `alpha`
   (`new = color * alpha + old * (1 - alpha)`, per colour channel).
 

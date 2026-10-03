@@ -45,6 +45,7 @@ VISOR = {  # how the visor looks; moods say how far it is down ("visor": 0 up ..
     "color": "#0B1E3A",   # the tint
     "alpha": 0.82,        # 0 clear .. 1 the eyes cannot be seen behind it
     "shine": "#9CC8FF",   # the reflection stripes
+    "glint": 0.2,         # where the reflection rests, across the visor (0 left .. about 1.4 gone right)
 }
 
 FACES = {

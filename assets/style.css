@@ -213,6 +213,10 @@ button.reset { padding: 2px 6px; }
 .ranges td.tools { white-space: nowrap; }
 .ranges td.tools button { padding: 2px 8px; }
 .ranges tr.live td:first-child { box-shadow: inset 3px 0 var(--ok); }
+.ranges td input.short { width: 4.5em; }
+.ranges tr.details td { padding: 2px 4px 8px 24px; border-top: none; }
+.ranges tr.details label { display: inline-flex; align-items: center; gap: 6px; margin-right: 20px; }
+.ranges tr.details select { width: auto; }
 
 @media (max-width: 900px) {
   main { grid-template-columns: 1fr; }

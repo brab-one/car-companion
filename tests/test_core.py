@@ -66,17 +66,29 @@ class CompanionTest(unittest.TestCase):
     def test_speed_picks_the_mood(self):
         for speed, mood in [(0, "happy"), (50, "neutral"), (95, "racing"), (3, "happy")]:
             self.send(type="sim_car", speed_kmh=speed)
-            self.run_for(3)  # "fast" holds for 2 s
+            self.run_for(11)  # "fast" holds for 8 s, then the visor goes up
             self.assertEqual(self.brain.status["mood"], mood, f"at {speed} km/h")
 
-    def test_visor_comes_down_from_90_kmh(self):
+    def test_visor_comes_down_from_90_kmh_and_up_8_s_after_slowing_down(self):
+        self.run_for(3)  # finish waking up
         self.send(type="sim_car", speed_kmh=95)
-        self.run_for(3)  # after waking up (moods wait for the wake_up animation)
-        display = self.brain.scene["displays"][0]
-        self.assertEqual((self.brain.status["mood"], display["visor"]["y"]), ("racing", 62))
+        visors = []
+        for _ in range(60):  # 3 s, watching the visor come down
+            self.run_for(0.05)
+            visors.append(self.brain.scene["displays"][0].get("visor"))
+        down = [v["y"] for v in visors if v]
+        self.assertGreater(max(down), 62)  # it bounces past its place ...
+        self.assertEqual(down[-1], 62)     # ... and settles
+        self.assertEqual(len({v["glint"] for v in visors if v}) > 5, True)  # the glint sweeps across
+        self.assertEqual(self.brain.status["mood"], "racing")
         self.send(type="sim_car", speed_kmh=60)
-        self.run_for(3)  # "fast" holds 2 s, then the visor goes up again
+        self.run_for(6)
+        self.assertEqual((self.brain.status["mood"], self.brain.scene["displays"][0]["visor"]["y"]), ("racing", 62))
+        self.run_for(5)  # 8 s hold, then "visor_up"
         self.assertNotIn("visor", self.brain.scene["displays"][0])
+        self.assertEqual(self.brain.status["mood"], "neutral")
+        animations = {m["animation"] for m, _ in self.sent_of("status")}
+        self.assertTrue({"visor_down", "visor_up"} <= animations)
 
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)

@@ -22,5 +22,6 @@ def resolve(faces, name):
         pair[side] = eye
     pair["gap"] = mood.get("gap", base["gap"])
     pair["visor"] = mood.get("visor", base.get("visor", 0))
+    pair["glint"] = faces.get("visor", {}).get("glint", 0.2)  # where the visor's reflection rests
     pair["blink_s"] = mood.get("blink_s", base.get("blink_s"))
     return pair

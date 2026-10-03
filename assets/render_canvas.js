@@ -117,15 +117,15 @@ function fillEye(img, eye, brightness) {
 }
 
 // The visor: a rounded band laid over the eyes, tinted by `alpha` (0 clear,
-// 1 solid), with two "/" reflection stripes. The OLED sketch must draw it
-// the same way (PROTOCOL.md, "Scenes").
+// 1 solid), with two "/" reflection stripes at `glint`. The OLED sketch must
+// draw it the same way (PROTOCOL.md, "Scenes").
 function fillVisor(img, visor, brightness) {
   const tint = panelColor(parseInt(visor.color.slice(1), 16), brightness);
   const shine = panelColor(parseInt(visor.shine.slice(1), 16), brightness);
   const band = { ...visor, slant: 0, cut: 0 };
   const left = visor.x - visor.w / 2;
   const top = visor.y - visor.h / 2;
-  const stripe = 0.2 * visor.w; // where the first stripe starts along the diagonal
+  const stripe = (visor.glint ?? 0.2) * visor.w; // where the first stripe starts along the diagonal
   for (let y = Math.max(0, Math.floor(top)); y < Math.min(SIZE, Math.ceil(top + visor.h)); y++) {
     for (let x = Math.max(0, Math.floor(left)); x < Math.min(SIZE, Math.ceil(left + visor.w)); x++) {
       if (!insideEye(x + 0.5, y + 0.5, band)) continue;

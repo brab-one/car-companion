@@ -1,7 +1,7 @@
 """Animation player: moves the eyes through animations from animations.json.
 
 Three channels change independently, each smoothly from where it is now:
-  shape  the eye parameters of a mood (sizes, colour, slant, cut, visor)
+  shape  the eye parameters of a mood (sizes, colour, slant, cut, visor and its glint)
   look   where the eyes look: x and y from -1 to 1
   blink  0 is open, 1 is closed
 
@@ -25,6 +25,7 @@ EASES = {
 DEFAULT_MS = 250       # step transition time when a step does not say
 RETURN_MS = 250        # back to the middle after an animation
 MAX_NESTING = 4        # "anim" steps inside "anim" steps
+SHAPE_STEPS = ("mood", "visor", "glint")  # step fields that change the shape channel
 
 
 class Tween:
@@ -67,7 +68,7 @@ class Track:
         self.name, self.steps, self.keep, self.idle = name, steps, keep, idle
         self.i = -1
         self.step_end = 0.0
-        self.moods = any("mood" in s for s in steps)
+        self.shapes = any(k in s for s in steps for k in SHAPE_STEPS)  # touches the shape channel
         self.blinks = any("blink" in s for s in steps)
 
 
@@ -109,14 +110,14 @@ class Animator:
     def set_config(self, faces_cfg, animations_cfg, mood_ms, now):
         """New faces.json / animations.json: the eyes take on the edited mood at once."""
         self.faces, self.animations, self.mood_ms = faces_cfg, animations_cfg["animations"], mood_ms
-        if not (self.main and self.main.moods):
+        if not (self.main and self.main.shapes):
             self.shape.to(self._shape_of(self.base_mood), now, mood_ms)
 
     def set_base(self, mood, idle, now):
         """The mood and idle behaviour to rest in, chosen by the rules."""
         if mood != self.base_mood:
             self.base_mood = mood
-            if not (self.main and self.main.moods):  # else it applies when the animation ends
+            if not (self.main and self.main.shapes):  # else it applies when the animation ends
                 self.shape.to(self._shape_of(mood), now, self.mood_ms)
             if self.awake and self.blinker is None:
                 self._schedule_blink(now)
@@ -171,8 +172,12 @@ class Animator:
         ms = self._pick(step.get("ms", DEFAULT_MS))
         ease = step.get("ease", "smooth")
         if track is self.main:  # the blink track only moves the eyelids
-            if "mood" in step:
-                self.shape.to(self._shape_of(step["mood"]), now, ms, ease)
+            if any(k in step for k in SHAPE_STEPS):
+                target = self._shape_of(step["mood"]) if "mood" in step else dict(self.shape.b)
+                for key in ("visor", "glint"):  # move the visor or its reflection on their own
+                    if key in step:
+                        target[key] = float(step[key])
+                self.shape.to(target, now, ms, ease)
             if "look" in step:
                 self.look.to(self._look_target(step["look"]), now, ms, ease)
         if "blink" in step:
@@ -187,7 +192,7 @@ class Animator:
             return
         self.main = None
         if not track.keep:
-            if track.moods:
+            if track.shapes:
                 self.shape.to(self._shape_of(self.base_mood), now, self.mood_ms)
             if track.blinks:
                 self.blink.to(0.0, now, RETURN_MS)
@@ -228,7 +233,8 @@ class Animator:
 
     def _shape_of(self, mood):
         pair = faces.resolve(self.faces, mood)
-        return {"left": pair["left"], "right": pair["right"], "gap": pair["gap"], "visor": pair["visor"]}
+        return {"left": pair["left"], "right": pair["right"], "gap": pair["gap"],
+                "visor": pair["visor"], "glint": pair["glint"]}
 
     def _look_target(self, spec):
         if spec == "random":

@@ -11,5 +11,6 @@
     "suspicious": {"left": {"h": 18}, "right": {"h": 40}},
     "racing":     {"h": 30, "slant": 5, "visor": 1}
   },
-  "visor": {"y": 62, "w": 124, "h": 44, "r": 12, "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF"}
+  "visor": {"y": 62, "w": 124, "h": 44, "r": 12, "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF",
+            "glint": 0.2}
 }

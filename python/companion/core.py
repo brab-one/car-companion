@@ -125,6 +125,14 @@ class Companion:
         cfg = self.store.data
         active = self.rules.update(self._signals(now), now)
         self._log_rule_changes([rule.id for rule, _ in active])
+        # Animations first: a mood change waits for an animation that shapes the eyes,
+        # so e.g. "visor_down" brings the visor down itself. New events win over endings.
+        for rule in self.rules.ended:
+            if "play_end" in rule.spec:
+                self.animator.play(rule.spec["play_end"], now)
+        for rule, fired in active:
+            if fired and "play" in rule.spec:
+                self.animator.play(rule.spec["play"], now)
         mood = next((r.spec["mood"] for r, _ in active if "mood" in r.spec), cfg["faces"]["default"])
         if mood not in cfg["faces"]["moods"]:
             mood = cfg["faces"]["default"]
@@ -132,8 +140,6 @@ class Companion:
         idle = next(({**idle, **r.spec["idle"]} for r, _ in active if "idle" in r.spec), idle)
         self.animator.set_base(mood, idle, now)
         for rule, fired in active:
-            if fired and "play" in rule.spec:
-                self.animator.play(rule.spec["play"], now)
             if fired and "say" in rule.spec:
                 self._say(rule.spec["say"], f"rule {rule.id}", rule.spec.get("level", 2), now)
 
