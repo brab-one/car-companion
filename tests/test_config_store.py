@@ -6,11 +6,12 @@ import unittest
 from pathlib import Path
 
 from companion.config_store import NAMES, ConfigStore
-from companion.jsonfile import write_text_atomic
-from companion.validate import check
+from companion.jsonfile import dumps_compact, write_text_atomic
+from companion.validate import check, cross_check
 from tests import ROOT
 
 CONFIG = ROOT / "config"
+IMAGES = sorted(p.name for p in (ROOT / "assets" / "images").glob("*.png"))
 
 
 class ConfigStoreTest(unittest.TestCase):
@@ -36,15 +37,34 @@ class ConfigStoreTest(unittest.TestCase):
         path.write_text(text)
         os.utime(path, ns=(old + 10**9, old + 10**9))
 
-    def test_shipped_config_files_are_valid(self):
+    def test_shipped_config_files_are_valid_and_fit_together(self):
+        data = {}
         for name in NAMES:
-            _, errors = check(name, json.loads((CONFIG / f"{name}.json").read_text()))
+            data[name], errors = check(name, json.loads((CONFIG / f"{name}.json").read_text()))
             self.assertEqual(errors, [], name)
+        self.assertEqual(cross_check(data, IMAGES), [])
 
     def test_good_file_is_used_and_kept(self):
         s = self.store()
-        self.assertEqual(s.source, {"faces": "file", "settings": "file"})
+        self.assertEqual(set(s.source.values()), {"file"})
         self.assertTrue((self.dir / ".good" / "faces.json").exists())
+
+    def test_save_checks_then_writes_readable_json(self):
+        s = self.store()
+        places = json.loads((CONFIG / "places.json").read_text())
+        places["places"][0]["radius_m"] = 500
+        self.assertEqual(s.save("places", places), [])
+        text = (self.dir / "places.json").read_text()
+        self.assertEqual((json.loads(text), s.data["places"]), (places, places))
+        self.assertLess(len(text.splitlines()), 10)  # one line per place, not one per value
+        self.assertEqual(s.poll(), [])  # what was just saved is not reloaded
+        errors = s.save("places", {"places": "none"})
+        self.assertEqual(errors, ["places.json: places: expected a list"])
+        self.assertEqual(json.loads((self.dir / "places.json").read_text()), places)
+
+    def test_compact_json_round_trips(self):
+        data = {"a": [1, 2], "b": {"c": "x" * 120, "d": None}, "e": []}
+        self.assertEqual(json.loads(dumps_compact(data)), data)
 
     def test_broken_file_falls_back_to_last_good_copy(self):
         self.store()  # saves the good copies

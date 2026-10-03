@@ -1,35 +1,42 @@
-// Phone app panel: stands in for the Android app's controls.
-// Step 1: preview a mood. Editing settings, animations and places comes in step 5.
+// Phone app panel: stands in for the Android app's main screen. What the
+// companion is doing, and buttons to preview moods and animations.
+// The settings screens are in the Configure dialog (panel_config.js).
+
+import { button } from './dom.js';
 
 const SOURCE_TEXT = { last_good: 'the last good version', defaults: 'the built-in defaults' };
+const PREVIEW_MS = 2500; // how long a mood preview lasts
 
 export class PhonePanel {
   constructor(root, send) {
     this.send = send;
     this.moods = root.querySelector('#moods');
+    this.animations = root.querySelector('#animations');
     this.errorBox = root.querySelector('#config-errors');
     this.statusLine = root.querySelector('#status-line');
     this.configErrors = {}; // file name -> {errors, source}
     this.mood = null;
   }
 
-  setFaces(faces) {
-    const buttons = Object.keys(faces.moods).map((name) => {
-      const button = document.createElement('button');
-      button.textContent = name;
-      button.dataset.mood = name;
-      button.addEventListener('click', () => this.send({ type: 'play', steps: [{ mood: name }] }));
-      return button;
-    });
-    this.moods.replaceChildren(...buttons);
+  setConfig(config) {
+    this.moods.replaceChildren(...Object.keys(config.faces.moods).map((name) =>
+      button(name, () => this.send({ type: 'play', steps: [{ mood: name, ms: 300, hold_ms: PREVIEW_MS }] }))));
+    this.animations.replaceChildren(...Object.keys(config.animations.animations).map((name) =>
+      button(name, () => this.send({ type: 'play', name }))));
     this.#highlight();
   }
 
   setStatus(status) {
-    if (!status) return;
     this.mood = status.mood;
     this.#highlight();
-    this.statusLine.textContent = `Mood: ${status.mood} · brightness ${Math.round(status.brightness * 100)} %`;
+    const parts = [
+      status.asleep ? 'Asleep' : `Mood: ${status.mood}`,
+      status.rules.length ? `rules: ${status.rules.join(', ')}` : 'no rule active',
+    ];
+    if (status.animation) parts.push(`playing: ${status.animation}`);
+    if (status.place) parts.push(`in: ${status.place}`);
+    parts.push(`brightness ${Math.round(status.brightness * 100)} %`);
+    this.statusLine.textContent = parts.join(' · ');
   }
 
   // errors: list of messages, or empty when the file is fine again.
@@ -46,8 +53,6 @@ export class PhonePanel {
   }
 
   #highlight() {
-    for (const button of this.moods.children) {
-      button.classList.toggle('active', button.dataset.mood === this.mood);
-    }
+    for (const b of this.moods.children) b.classList.toggle('active', b.textContent === this.mood);
   }
 }

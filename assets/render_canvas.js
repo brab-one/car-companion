@@ -10,9 +10,11 @@ export class CanvasRenderer {
   constructor(container) {
     this.container = container;
     this.canvases = [];
+    this.scene = null;
   }
 
   draw(scene) {
+    this.scene = scene;
     this.#setCount(scene.displays?.length ?? Math.max(1, this.canvases.length));
     const draw = DRAW[scene.kind];
     if (!draw) console.warn('unknown scene kind', scene.kind);
@@ -20,7 +22,7 @@ export class CanvasRenderer {
       const ctx = canvas.getContext('2d');
       const img = ctx.createImageData(SIZE, SIZE);
       fillBlack(img);
-      draw?.(img, scene, i);
+      draw?.(img, scene, i, () => this.scene === scene && this.draw(scene));
       ctx.putImageData(img, 0, 0);
     });
   }
@@ -37,14 +39,55 @@ export class CanvasRenderer {
   }
 }
 
-// One function per scene kind: (image, scene, display index).
+// One function per scene kind: (image, scene, display index, redraw).
 const DRAW = {
   off() {}, // everything stays black
   eyes(img, scene, i) {
     for (const eye of scene.displays[i]?.shapes ?? []) fillEye(img, eye, scene.brightness ?? 1);
   },
-  // "image" and "value" arrive in later steps.
+  image(img, scene, i, redraw) {
+    const picture = loadPicture(scene.image, redraw);
+    if (picture) img.data.set(toPanelImage(picture, scene.brightness ?? 1).data);
+  },
+  // "value" (a big number such as the oil temperature) comes later.
 };
+
+// ---- pictures ---------------------------------------------------------------
+
+const pictures = new Map(); // file name -> Image
+
+function loadPicture(name, onLoad) {
+  let picture = pictures.get(name);
+  if (!picture) {
+    picture = new Image();
+    picture.src = `images/${encodeURIComponent(name)}?v=${Date.now()}`; // pictures can be replaced
+    pictures.set(name, picture);
+  }
+  if (!picture.complete) picture.addEventListener('load', onLoad, { once: true });
+  return picture.complete && picture.naturalWidth ? picture : null;
+}
+
+// Call when pictures were added or replaced.
+export function forgetPictures() {
+  pictures.clear();
+}
+
+// A picture (Image or canvas) as the OLED shows it: 128×128, RGB565, dimmed.
+export function toPanelImage(picture, brightness = 1) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(picture, 0, 0, SIZE, SIZE);
+  const img = ctx.getImageData(0, 0, SIZE, SIZE);
+  const d = img.data;
+  for (let p = 0; p < d.length; p += 4) {
+    [d[p], d[p + 1], d[p + 2]] = panelColor((d[p] << 16) | (d[p + 1] << 8) | d[p + 2], brightness);
+    d[p + 3] = 255;
+  }
+  return img;
+}
+
+// ---- eyes -------------------------------------------------------------------
 
 function fillBlack(img) {
   const d = img.data;
@@ -55,7 +98,7 @@ function fillBlack(img) {
 }
 
 function fillEye(img, eye, brightness) {
-  const [r, g, b] = panelColor(eye.color, brightness);
+  const [r, g, b] = panelColor(parseInt(eye.color.slice(1), 16), brightness);
   const x0 = Math.max(0, Math.floor(eye.x - eye.w / 2));
   const x1 = Math.min(SIZE, Math.ceil(eye.x + eye.w / 2));
   const y0 = Math.max(0, Math.floor(eye.y - eye.h / 2));
@@ -106,11 +149,10 @@ export function insideEye(px, py, eye) {
 
 // The panel stores RGB565 (5 bits red, 6 green, 5 blue). Dimming is assumed
 // to happen in the panel (its master current), so it is applied afterwards.
-function panelColor(hex, brightness) {
-  const n = parseInt(hex.slice(1), 16);
-  const r5 = (n >> 19) & 31;
-  const g6 = (n >> 10) & 63;
-  const b5 = (n >> 3) & 31;
+function panelColor(rgb, brightness) {
+  const r5 = (rgb >> 19) & 31;
+  const g6 = (rgb >> 10) & 63;
+  const b5 = (rgb >> 3) & 31;
   return [(r5 << 3) | (r5 >> 2), (g6 << 2) | (g6 >> 4), (b5 << 3) | (b5 >> 2)]
     .map((v) => Math.round(v * brightness));
 }

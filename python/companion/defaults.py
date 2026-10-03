@@ -9,16 +9,33 @@ so the companion always has a face to show."""
 
 SETTINGS = {
     "version": 1,
-    "displays": 1,          # 1: both eyes on one OLED, 2: one OLED per eye
-    "fps": 30,              # scene updates per second
+    "displays": 1,             # 1: both eyes on one OLED, 2: one OLED per eye
+    "fps": 30,                 # scene updates per second
     "brightness": {
-        "mode": "manual",   # "manual" or "auto" (auto follows sunrise/sunset from step 4)
-        "manual": 100,      # percent
+        "mode": "manual",      # "manual" or "auto" (auto will follow sunrise/sunset)
+        "manual": 100,         # percent
     },
     "layout": {
-        "look_x_px": 18,    # how far the eyes move for look x = +-1
-        "look_y_px": 12,    # how far the eyes move for look y = +-1
-        "dual_scale": 2.0,  # eye size factor with two displays
+        "look_x_px": 18,       # how far the eyes move for look x = +-1
+        "look_y_px": 12,       # how far the eyes move for look y = +-1
+        "dual_scale": 2.0,     # eye size factor with two displays
+    },
+    "mood_ms": 350,            # how long a change from one mood to another takes
+    "idle": {                  # what the eyes do when nothing else happens
+        "play": ["glance_left", "glance_right", "look_up"],
+        "every_s": [5, 12],
+    },
+    "chattiness": 2,           # 0 silent, 1 important lines only, 2 normal, 3 everything
+    "say_gap_s": 8,            # at least this many seconds between two lines
+    "sleep_after_off_s": 20,   # display off this long after the ignition is turned off
+    "place_exit_margin": 0.2,  # a place is left at radius_m * (1 + this), see geofence.py
+    "thresholds": {            # values rules.json can use as $name; add your own
+        "fast_kmh": 100,
+        "slow_kmh": 5,
+        "shake_g": 0.35,
+        "oil_warm_c": 80,
+        "coolant_hot_c": 105,
+        "redline_rpm": 7500,
     },
 }
 
@@ -31,4 +48,16 @@ FACES = {
     },
 }
 
-FILES = {"faces": FACES, "settings": SETTINGS}
+ANIMATIONS = {
+    "version": 1,
+    "animations": {
+        "blink": {"steps": [{"blink": 1, "ms": 70}, {"blink": 0, "ms": 90}]},
+    },
+}
+
+RULES = {"version": 1, "rules": []}
+
+PLACES = {"version": 1, "places": []}
+
+FILES = {"faces": FACES, "animations": ANIMATIONS, "rules": RULES,
+         "places": PLACES, "settings": SETTINGS}

@@ -4,35 +4,147 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Car Companion simulator</title>
+    <!-- The map (Leaflet + OpenStreetMap) loads from the internet; the rest works without it. -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header>
       <h1>Car Companion</h1>
       <span id="connection" class="pill">connecting…</span>
+      <button id="open-config" type="button" class="primary">Configure</button>
     </header>
 
     <main>
       <section class="card" id="display-card">
         <h2>Display</h2>
         <div id="displays" class="displays"></div>
+        <p id="speech" class="speech" hidden></p>
         <p class="hint">128 × 128 pixels, RGB565 colours, shown 4× larger.</p>
       </section>
 
-      <section class="card" id="phone">
-        <h2>Phone app</h2>
-        <div id="config-errors" class="errors"></div>
-        <h3>Mood</h3>
-        <div id="moods" class="buttons"></div>
-        <p id="status-line" class="hint"></p>
+      <div class="column">
+        <section class="card" id="phone">
+          <h2>Phone app</h2>
+          <div id="config-errors" class="errors"></div>
+          <p id="status-line" class="status"></p>
+          <h3>Preview a mood</h3>
+          <div id="moods" class="buttons"></div>
+          <h3>Play an animation</h3>
+          <div id="animations" class="buttons"></div>
+        </section>
+
+        <section class="card" id="car">
+          <h2>Car</h2>
+          <label class="check"><input id="ignition" type="checkbox" checked /> Ignition on</label>
+          <div id="sliders" class="sliders"></div>
+          <h3>Board motion (Modulino Movement)</h3>
+          <div class="row">
+            <span id="motion" class="hint">no data</span>
+            <button id="shake" type="button">Shake the board</button>
+          </div>
+          <h3>Scenarios</h3>
+          <div id="scenarios" class="buttons"></div>
+        </section>
+      </div>
+
+      <section class="card wide" id="location">
+        <h2>Location</h2>
+        <div id="map" class="map"></div>
+        <p id="location-info" class="status"></p>
+        <div class="row">
+          <span class="hint">Jump to</span>
+          <div id="place-buttons" class="buttons"></div>
+        </div>
+        <div class="row">
+          <label>Lat <input id="lat" type="number" step="any" /></label>
+          <label>Lon <input id="lon" type="number" step="any" /></label>
+          <button id="go" type="button">Go</button>
+        </div>
+        <div class="row">
+          <button id="route-draw" type="button">Draw route</button>
+          <button id="route-drive" type="button">Drive route</button>
+          <button id="route-clear" type="button">Clear route</button>
+          <label>Time
+            <select id="time-scale">
+              <option value="1">real time</option>
+              <option value="10">10× faster</option>
+              <option value="60">60× faster</option>
+            </select>
+          </label>
+        </div>
+        <p id="route-info" class="hint"></p>
       </section>
 
-      <section class="card" id="log-card">
+      <section class="card wide" id="log-card">
         <h2>Log</h2>
         <ol id="log"></ol>
       </section>
     </main>
 
+    <dialog id="config">
+      <div class="dialog-head">
+        <h2>Configure</h2>
+        <nav class="tabs">
+          <button type="button" data-tab="places" class="active">Places</button>
+          <button type="button" data-tab="files">Files</button>
+        </nav>
+        <button id="close-config" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div id="tab-places" class="tab-pane">
+        <div class="places">
+          <div class="place-list">
+            <div id="place-list" class="list"></div>
+            <button id="add-place" type="button">+ Add place</button>
+          </div>
+          <form id="place-form" class="place-form">
+            <h3 id="place-title">New place</h3>
+            <label>Name <input name="name" required /></label>
+            <div class="row">
+              <label>Latitude <input name="lat" type="number" step="any" min="-90" max="90" required /></label>
+              <label>Longitude <input name="lon" type="number" step="any" min="-180" max="180" required /></label>
+              <button id="use-position" type="button">Use the map position</button>
+            </div>
+            <div class="row">
+              <label>Radius (m) <input name="radius_m" type="number" min="10" max="200000" required /></label>
+              <label>Show picture (s) <input name="show_s" type="number" min="1" max="300" required /></label>
+              <label>Quiet after (min) <input name="cooldown_min" type="number" min="0" max="10080" required /></label>
+            </div>
+            <div class="picture">
+              <canvas id="photo-preview"></canvas>
+              <div>
+                <label>Picture <input id="photo" type="file" accept="image/*" /></label>
+                <p id="photo-note" class="hint"></p>
+                <p class="hint">Any photo: the middle square is cut out and scaled to 128 × 128.</p>
+              </div>
+            </div>
+            <label>Caption <input name="caption" /></label>
+            <label>He says <input name="say" /></label>
+            <div class="row">
+              <button type="submit" class="primary">Save place</button>
+              <button id="delete-place" type="button" class="danger">Delete place</button>
+            </div>
+            <pre id="place-message" class="message"></pre>
+          </form>
+        </div>
+      </div>
+
+      <div id="tab-files" class="tab-pane" hidden>
+        <div class="row">
+          <select id="file-name"></select>
+          <button id="file-revert" type="button">Revert</button>
+          <button id="file-save" type="button" class="primary">Save</button>
+        </div>
+        <textarea id="file-text" spellcheck="false"></textarea>
+        <pre id="file-message" class="message"></pre>
+        <p class="hint">How the files work: README.md. Changes apply as soon as they are saved.</p>
+      </div>
+    </dialog>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- On the board these come from Arduino's WebUI (socket.io).
          tools/run_pc.py replaces them with a stand-in that has the same API. -->
     <script src="libs/socket.io.min.js"></script>

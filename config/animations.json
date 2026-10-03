@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "animations": {
+    "blink":        {"steps": [{"blink": 1, "ms": 70, "ease": "in"}, {"blink": 0, "ms": 90, "ease": "out"}]},
+    "double_blink": {"steps": [{"blink": 1, "ms": 60}, {"blink": 0, "ms": 70, "hold_ms": 80},
+                               {"blink": 1, "ms": 60}, {"blink": 0, "ms": 80}]},
+    "glance_left":  {"steps": [{"look": [-0.8, 0], "ms": 160, "ease": "out", "hold_ms": [500, 900]},
+                               {"look": "center", "ms": 220}]},
+    "glance_right": {"steps": [{"look": [0.8, 0], "ms": 160, "ease": "out", "hold_ms": [500, 900]},
+                               {"look": "center", "ms": 220}]},
+    "look_up":      {"steps": [{"look": [0, -0.9], "ms": 180, "ease": "out", "hold_ms": [400, 800]},
+                               {"look": "center", "ms": 240}]},
+    "look_around":  {"steps": [{"look": "random", "ms": [120, 220], "ease": "out", "hold_ms": [350, 1100], "repeat": [3, 6]},
+                               {"look": "center", "ms": 260, "hold_ms": 300}]},
+    "surprised":    {"steps": [{"mood": "surprised", "ms": 90, "ease": "out", "hold_ms": 1200}]},
+    "wake_up":      {"steps": [{"mood": "sleepy", "blink": 1, "ms": 0, "hold_ms": 300},
+                               {"blink": 0, "ms": 600},
+                               {"anim": "double_blink"},
+                               {"look": [-0.6, 0], "ms": 200, "ease": "out", "hold_ms": 300},
+                               {"look": [0.6, 0], "ms": 250, "ease": "out", "hold_ms": 300},
+                               {"look": "center", "ms": 200}]},
+    "sleep":        {"steps": [{"mood": "sleepy", "look": [0, 0.4], "ms": 1200},
+                               {"blink": 1, "ms": 900, "ease": "in"}], "keep": true}
+  }
+}

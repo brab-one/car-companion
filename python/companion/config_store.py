@@ -7,17 +7,18 @@ When a file is broken, the companion uses, in this order:
   3. the built-in defaults in defaults.py.
 
 poll() notices files that changed on disk (edited by hand, copied by
-deploy.sh, or saved by the app), so changes apply without a restart."""
+deploy.sh), and save() stores what the app sends, so changes apply without
+a restart."""
 
 import copy
 import json
 from pathlib import Path
 
 from . import defaults
-from .jsonfile import write_text_atomic
+from .jsonfile import dumps_compact, write_text_atomic
 from .validate import check
 
-NAMES = ("faces", "settings")  # animations, rules and places join in later steps
+NAMES = ("faces", "animations", "rules", "places", "settings")
 
 
 class ConfigStore:
@@ -56,6 +57,22 @@ class ConfigStore:
                 fallback, _ = check(name, copy.deepcopy(defaults.FILES[name]))
                 self.data[name], self.source[name] = fallback, "defaults"
         return errors
+
+    def save(self, name, raw):
+        """Check and store a whole file sent by the app. Returns its problems ([] when saved)."""
+        data, errors = check(name, raw)
+        if errors:
+            return errors
+        path = self.folder / f"{name}.json"
+        text = dumps_compact(raw)
+        try:
+            write_text_atomic(path, text)
+        except OSError as e:
+            return [f"{name}.json: could not save the file ({e})"]
+        self.data[name], self.errors[name], self.source[name] = data, [], "file"
+        self._stamps[name] = _stamp(path)  # no need to reload what we just wrote
+        self._keep_good(name, text)
+        return []
 
     def poll(self):
         """Reload the files that changed on disk. Returns their names."""

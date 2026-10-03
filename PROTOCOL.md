@@ -7,9 +7,9 @@ and the companion is a small JSON message with a `"type"` field.
 
 | Where | How |
 |---|---|
-| Board | Arduino WebUI (socket.io) on port 7000. One event name, `msg`, in both directions. Python: `ui.send_message("msg", msg, room=sid)`; JavaScript: `ui.send_message('msg', msg)`. |
+| Board | Arduino WebUI (socket.io) on port 7000. One event name, `msg`, in both directions. Python: `ui.send_message("msg", msg, sid)`; JavaScript: `ui.send_message('msg', msg)`. |
 | PC (`tools/run_pc.py`) | Same messages. Companion → app as Server-Sent Events named `msg` on `GET /events?id=<client>`; app → companion as `POST /send?id=<client>` with body `{"name": "msg", "data": <message>}`. `tools/pc_webui.js` hides this behind the same `WebUI` API. |
-| Later: BLE | The same JSON messages. The phone will probably not want every `scene`; add a `subscribe` message then. |
+| Later: BLE | The same JSON messages. The phone will probably not want every `scene`; add a `subscribe` message then. Pictures (`image_put`) will need splitting into chunks. |
 
 Rules:
 
@@ -18,37 +18,43 @@ Rules:
 - Add fields instead of renaming them, so older apps keep working.
   `version` in `hello` and `state` is the protocol version (now 1).
 - Messages from the app are queued and handled in the companion's next tick,
-  in the order they arrived.
+  in the order they arrived. Answers marked "to this client" go only to the
+  app that asked.
 
 ## App → companion
 
-| type | Fields | Since | What it does |
-|---|---|---|---|
-| `hello` | `client` (`"sim"`, `"android"`), `version` | step 1 | First message after connecting. The companion answers with `state`, to this client only. |
-| `config_get` | `name` | step 1 | Asks for one config file. Answer: `config`, to this client only. |
-| `play` | `name`, or `steps` | step 1 (mood only) | Plays an animation from animations.json by `name`, or unsaved `steps` (preview while editing). Step 1 applies only the `mood` of the last step, at once; the animation player arrives in step 2. Example: `{"type": "play", "steps": [{"mood": "happy"}]}` |
-| `config_set` | `name`, `data` | step 5 | Replaces a config file: checked, saved atomically, applied live. Answer: `config_result`. |
-| `location` | `lat`, `lon`, `acc_m`?, `speed_kmh`?, `time`? | step 4 | A GPS fix from the phone. `time` (Unix seconds) also corrects the board's clock. |
-| `chat` | `text` | step 3 | A question for the companion. Answer: `chat_reply`. |
-| `sim_car` | any car fields, e.g. `ignition`, `rpm` | step 3 | Simulator only: sets fake OBD values. |
-| `sim_scenario` | `name` | step 3 | Simulator only: `cold_start`, `warm_up`, `launch`, `hard_brake`, `corner_left`, `corner_right`, `park`. |
-| `sim_clock` | `hour`, or `null` for the real time | step 4 | Simulator only: fake time of day, to test night dimming. |
+| type | Fields | What it does |
+|---|---|---|
+| `hello` | `client` (`"sim"`, `"android"`), `version` | First message after connecting. Answer: `state`, to this client. |
+| `config_get` | `name` | Asks for one config file. Answer: `config`, to this client. |
+| `config_set` | `name`, `data` | Replaces a whole config file. It is checked, saved atomically and applied at once. Answer: `config_result`, to this client; everyone gets the new `config`. |
+| `image_put` | `name` (e.g. `"kastelruth.png"`), `png_base64` | Stores a place picture: a 128 × 128 PNG, at most 300 kB. Answer: `image_result`, to this client; everyone gets `images`. |
+| `play` | `name`, or `steps` | Plays an animation from animations.json, or unsaved steps (a preview while editing). Example: `{"type": "play", "steps": [{"mood": "happy", "ms": 300, "hold_ms": 2500}]}` |
+| `location` | `lat`, `lon` | The phone's GPS position. Later also `speed_kmh`, `acc_m` and `time` (to set the board's clock). |
+| `sim_car` | any car fields: `ignition`, `speed_kmh`, `rpm`, `oil_c`, `coolant_c`, `g_long`, `g_lat` | Simulator only: sets values on the simulated car, and stops a running scenario. |
+| `sim_scenario` | `name` | Simulator only: plays a scripted drive (names in `state.scenarios`). |
+| `sim_motion` | `g`, `s` | Simulator only: pretends the Modulino Movement measures `g` for `s` seconds ("Shake the board"). |
+
+Planned: `chat` (a question; answer `chat_reply`), `sim_clock` (fake time of
+day for testing night dimming).
 
 ## Companion → app
 
-| type | Fields | Since | When |
-|---|---|---|---|
-| `state` | `version`, `config`, `config_errors`, `config_source`, `scene`, `status`, `log` | step 1 | Answer to `hello`: everything the app needs to draw itself. `config` holds every config file by name; `config_errors` lists problems by file name (only files that have some); `config_source` says where each file's data came from (see `config_error`); `log` holds recent `log` messages. Later also `car` and `location`. |
-| `config` | `name`, `data`, `source` | step 1 | A config file was loaded (from the app, or edited on disk), or answer to `config_get`. |
-| `config_error` | `name`, `errors`, `source` | step 1 | A config file on disk has problems. `errors` are readable messages such as `faces.json: moods.happy.h: expected a number, got "tall"`. `source` says what is used instead: `last_good` or `defaults`. |
-| `scene` | `scene` | step 1 | What the displays show now. Sent only when it changes. See [Scenes](#scenes). |
-| `status` | `mood`, `brightness` | step 1 | Sent when one of its fields changes. Later also `sunrise`, `sunset`, `is_day`, `place`. |
-| `log` | `level` (`info`, `warn`, `error`), `source`, `text` | step 1 | Something happened: rule fired, place entered, config problem. |
-| `car` | car fields | step 3 | Current car data, 5 times a second. |
-| `say` | `text`, `rule` | step 3 | The companion speaks, and which rule made it. |
-| `chat_reply` | `text` | step 3 | Answer to `chat`. |
-| `config_result` | `name`, `ok`, `errors` | step 5 | Answer to `config_set`. |
-| `matrix` | `rows`: 8 strings of 13 digits `0`–`7` | step 6 | The LED matrix frame, mirrored in the simulator. |
+| type | Fields | When |
+|---|---|---|
+| `state` | `version`, `config`, `config_errors`, `config_source`, `scene`, `status`, `car`, `scenarios`, `images`, `log` | Answer to `hello`: everything the app needs to draw itself. `config` holds every config file by name; `config_errors` lists problems by file (only files that have some); `config_source` says where each file's data came from (see `config_error`); `log` holds the recent `log` messages. |
+| `config` | `name`, `data`, `source` | A config file was loaded (saved from the app, or edited on disk), or answer to `config_get`. Settings arrive completed with their defaults. |
+| `config_error` | `name`, `errors`, `source` | A config file on disk has problems, e.g. `faces.json: moods.happy.h: expected a number, got "tall"`. `source` says what is used instead: `last_good` or `defaults`. |
+| `config_result` | `name`, `ok`, `errors`, `warnings` | Answer to `config_set`. With errors nothing was saved. Warnings are names the file uses that other files do not have (an unknown mood, a missing picture); it was saved anyway. |
+| `image_result` | `name`, `ok`, `error` | Answer to `image_put`. |
+| `images` | `names` | The place pictures there are now. |
+| `scene` | `scene` | What the displays show now. Sent only when it changes. See [Scenes](#scenes). |
+| `status` | `mood`, `animation`, `rules`, `place`, `location`, `asleep`, `brightness` | Sent when one of its fields changes. `mood` is the mood chosen by the rules; `animation` the one playing, or null; `rules` the ids of the active rules; `place` the id of the place we are in, or null; `location` `{lat, lon}` or null. |
+| `car` | car fields, `scenario`, `motion_g`, `sensor` | Current car data, at most 5 times a second. `motion_g` is null without motion data; `sensor` says whether it comes from a real Modulino Movement. |
+| `say` | `text`, `source` | The companion says a line; `source` is what made him say it, e.g. `rule cold_oil_rev` or `place kastelruth`. |
+| `log` | `level` (`info`, `warn`, `error`, `say`), `source`, `text` | Something happened: a rule turned on or off, a place was entered, a config problem. |
+
+Planned: `chat_reply`, `matrix` (the LED matrix frame, step 6).
 
 ## Scenes
 
@@ -84,11 +90,21 @@ Drawing rule (the sketch must draw exactly like `insideEye()` in
 4. outside the cut ellipse, centred at `(x, y + h - cut)` with radii `0.75 * w` and `0.5 * h`
    (its top touches the eye `cut` pixels above the bottom edge).
 
-Planned scene kinds: `off` (asleep, step 2), `value` with `label`, `value`,
-`unit` (big number such as oil temperature, step 3), `image` with `image`,
-`caption` (place pictures, step 4).
+Other kinds:
 
-## Bridge (Python ↔ sketch), step 6
+- `{"kind": "image", "image": "schlern.png", "caption": "Schlern", "brightness": 1.0}`:
+  a place picture from `assets/images/`, 128 × 128, shown in RGB565. The
+  caption is not drawn yet (the OLED needs a pixel font first).
+- `{"kind": "off"}`: the display is off (a while after the ignition was turned off).
+- Planned: `value` with `label`, `value`, `unit` (a big number such as the oil temperature).
 
-- `matrix_draw(bytes[104])`: LED matrix frame, 8 rows × 13 columns, values 0–7.
-- `bridge_bench(bytes)`: measures throughput before deciding how scenes reach the OLED.
+## Bridge (Python ↔ sketch)
+
+| Call | Direction | What |
+|---|---|---|
+| `accel(x, y, z)` | sketch → Python, notify | One Modulino Movement sample in g, about 20 per second. |
+| `motion_sensor(found)` | sketch → Python, notify | Sent every 5 s while no Modulino Movement is found on the Qwiic connector. |
+
+Planned (step 6): `matrix_draw(bytes[104])` for the LED matrix (8 rows × 13
+columns, values 0–7), and `bridge_bench(bytes)` to measure throughput before
+deciding how scenes reach the OLED.

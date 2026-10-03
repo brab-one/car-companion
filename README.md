@@ -1,21 +1,37 @@
 # Car Companion
 
 A small companion for the dashboard of a Subaru BRZ, running on an Arduino
-UNO Q. It shows an animated face on a 128 × 128 OLED and is configured from a
-phone app. Later it will react to driving data and show pictures when you
-drive into certain places.
+UNO Q. It shows an animated face on a 128 × 128 OLED, reacts to how the car
+is driven, shows pictures when you drive into certain places, and is
+configured from a phone app.
 
 Until the hardware arrives, a browser simulator stands in for the OLED, the
-phone app, the car and the GPS.
+phone app, the car (OBD dongle) and the phone's GPS.
 
 **Progress**
 
 - [x] 1. App skeleton and simulator showing the eyes from `faces.json`
-- [ ] 2. Animation player and `animations.json`
-- [ ] 3. Car panel and `rules.json`
-- [ ] 4. Places and location panel
-- [ ] 5. Editing settings and config from the app, with live reload
+- [x] 2. Animation player and `animations.json`: blinking, glances, looking around, waking up, falling asleep
+- [x] 3. Car panel and `rules.json`: speed, revs, temperatures, g-forces, scenarios; plus the Modulino Movement
+- [x] 4. Places and location panel with a map and a route player (sunrise/sunset dimming still to do)
+- [x] 5. Configure dialog: places with pictures, and every config file (the chat stub is still to do)
 - [ ] 6. LED matrix output on the board
+
+## What he does
+
+| Situation | Face |
+|---|---|
+| Standing still or crawling (below `slow_kmh`, 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
+| Driving normally | neutral, an occasional glance |
+| Fast (above `fast_kmh`, 100 km/h) | angry |
+| Board shaken (Modulino Movement above `shake_g`) | angry, "Hey, stop shaking me!" |
+| Cold oil at high revs, hot coolant | worried, with a warning |
+| Hard braking, redline | surprised |
+| Entering a place | its picture for a few seconds, and a line |
+| Ignition off | falls asleep; the display goes off 20 s later |
+
+He blinks every few seconds (`blink_s` of the mood). All of this is set in
+the config files below; nothing is hard-coded.
 
 ## Run it on your PC
 
@@ -26,6 +42,19 @@ python3 tools/run_pc.py
 Then open http://localhost:7000. Only Python 3 is needed, nothing to install.
 With `--lan` you can also open it on your phone (same Wi-Fi, your PC's address).
 
+The page:
+
+- **Display**: the OLED, pixel for pixel, with what he says underneath.
+- **Phone app**: what he is doing and why (mood, active rules), buttons to preview moods and animations.
+- **Car**: ignition, speed and the other values, scenarios, and "Shake the board" in place of the motion sensor.
+- **Location**: click the map to put the car there, jump to a place, type coordinates,
+  or draw a route and drive it at the Car panel's speed (up to 60× faster than real time).
+  Dashed circles show where a place is left again.
+- **Log**: rules turning on and off, places, warnings, and his lines.
+- **Configure** (top right): add and edit places with their pictures, and edit any config file.
+
+The map needs internet (Leaflet and OpenStreetMap); the rest works without.
+
 ## Run it on the board
 
 Connect the board to this PC with its USB-C cable, then:
@@ -35,17 +64,27 @@ tools/deploy.sh
 ```
 
 It copies the app over the cable (adb, no Wi-Fi or password needed), restarts
-it on the board and makes the board's page available at http://localhost:7001.
-When the board is on your Wi-Fi, the page is also at `http://<board's IP>:7000`,
-for example on your phone. Config files already on the board are kept; add
+it on the board (compiling the sketch when it changed, about a minute) and
+makes the board's page available at http://localhost:7001. When the board is
+on your Wi-Fi, the page is also at `http://<board's IP>:7000`, for example on
+your phone. Config files and pictures already on the board are kept; add
 `--config` to overwrite them with yours. The app also shows up in App Lab as
 **Car Companion**.
 
 The board's log:
 
 ```bash
-adb shell arduino-app-cli app logs /home/arduino/ArduinoApps/car-companion
+adb shell TMPDIR=/tmp arduino-app-cli app logs /home/arduino/ArduinoApps/car-companion
 ```
+
+### Modulino Movement
+
+Plug a Modulino Movement into the board's Qwiic connector. The sketch
+(`sketch/sketch.ino`) looks for it every 5 seconds and sends about 20
+samples a second to Python, which turns them into `motion_g`: about 0.01 g
+lying still, 0.5 g and more when shaken. The log says "Modulino Movement:
+receiving data" when it works, and "not found on the Qwiic connector" when
+there is none.
 
 ## Tests
 
@@ -58,50 +97,39 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 ## How it fits together
 
 ```
- simulator / phone app ──┐                 ┌──────────────┐  scene  ┌─ simulator canvas
- car (simulated, later OBD) ──  messages ─▶│  Companion   │────────▶├─ LED matrix (step 6)
- GPS (simulated, later phone) ─┘           │  python/     │         └─ OLED (later)
-                                           └──────┬───────┘
-                                     config/*.json (applied live)
+ phone app (simulated) ─┐                      ┌──────────────┐  scene  ┌─ simulator canvas
+ car (simulated, later OBD) ─ messages / calls ▶│  Companion   │────────▶├─ LED matrix (step 6)
+ Modulino Movement (sketch) ┘                   │  python/     │         └─ OLED (later)
+                                                └──────┬───────┘
+                                          config/*.json, assets/images/ (applied live)
 ```
 
 | Path | What it is |
 |---|---|
-| `config/` | All data: faces, settings (later animations, rules, places). |
-| `python/main.py` | Board glue: WebUI and (later) Bridge, connected to the Companion. |
+| `config/` | All behaviour: faces, animations, rules, places, settings. |
+| `assets/images/` | Place pictures, 128 × 128 PNG. |
+| `python/main.py` | Board glue: WebUI and Bridge, connected to the Companion. |
 | `python/companion/` | The logic, plain Python. `core.py` is the place to start. |
+| `sketch/` | The microcontroller: reads the Modulino Movement; later the LED matrix and OLED. |
 | `assets/` | The simulator page, served by the board or by `run_pc.py`. |
-| `tools/` | `run_pc.py`, `deploy.sh`, and the PC stand-in for Arduino's `arduino.js`. |
+| `tools/` | `run_pc.py`, `deploy.sh`, `make_placeholders.py`, and the PC stand-in for Arduino's `arduino.js`. |
 | `tests/` | Unit tests for the logic. |
-| `PROTOCOL.md` | Every message between app and companion, and the scene format. |
+| `PROTOCOL.md` | Every message between app and companion, the scene format and the Bridge calls. |
 
 ## Config files
 
-All behaviour lives in JSON files in `config/`. Edit them by hand, in the
-simulator (step 5) or later from the phone; changes apply within a second.
+Edit them by hand, in the simulator (Configure, Files), or later from the
+phone; changes apply within a second. When a file has a problem, the log and
+the phone panel say exactly where, for example
+`faces.json: moods.happy.h: expected a number, got "tall"`, and the companion
+keeps running on the last good version (`config/.good/`), or on the built-in
+defaults. Names one file uses from another (an unknown mood in a rule, a
+missing picture) are reported as warnings.
 
-When a file has a problem, the log and the phone panel say exactly where, for
-example `faces.json: moods.happy.h: expected a number, got "tall"`, and the
-companion keeps running on the last good version (`config/.good/`), or on the
-built-in defaults if there is none.
+### Add a mood (faces.json)
 
-### settings.json
-
-Settings you leave out use the defaults in `python/companion/defaults.py`.
-
-| Field | Meaning |
-|---|---|
-| `displays` | 1: both eyes on one OLED. 2: one OLED per eye. |
-| `fps` | Scene updates per second. |
-| `brightness.mode` | `"manual"`, or `"auto"` to follow sunrise and sunset (step 4). |
-| `brightness.manual` | Brightness in percent for manual mode. |
-| `layout.look_x_px`, `layout.look_y_px` | How far the eyes move when looking fully sideways or up/down. |
-| `layout.dual_scale` | How much bigger the eyes are with two displays. |
-
-## Add a mood
-
-Add an entry to `moods` in `config/faces.json`. A mood inherits everything
-from the default mood (`neutral`) and only lists what changes:
+A mood inherits everything from the default mood (`neutral`) and only lists
+what changes:
 
 ```json
 "sad": {"h": 30, "slant": -14, "color": "#5AA0FF"}
@@ -115,20 +143,102 @@ from the default mood (`neutral`) and only lists what changes:
 | `slant` | Top edge lower at the inner side (angry), or with a negative value at the outer side (sad, worried). |
 | `cut` | Pixels cut from the bottom by a curve, for happy ^ ^ eyes. |
 | `gap` | Space between the eyes. |
-| `blink_s` | `[min, max]` seconds between blinks (from step 2), or `null` for no blinking. |
+| `blink_s` | `[min, max]` seconds between blinks, or `null` for no blinking. |
 | `left`, `right` | Change one eye only, e.g. `"left": {"h": 18}`. |
 
-Save the file and the new mood button appears in the simulator.
+### Add an animation (animations.json)
 
-## Add an animation, a rule, a place
+An animation is a list of steps, played one after the other. Each step
+changes what it names, smoothly from where the eyes are:
 
-These sections arrive with steps 2, 3 and 4.
+```json
+"nod": {"steps": [{"look": [0, 0.6], "ms": 150, "hold_ms": 100}, {"look": "center", "ms": 200}], "repeat": 2}
+```
+
+| Step field | Meaning |
+|---|---|
+| `mood` | Change to this mood. |
+| `look` | `[x, y]` from -1 to 1 (right and down are positive), `"center"`, or `"random"` (any spot up to the corners). |
+| `blink` | Eyelids: 0 open, 1 closed. |
+| `ms` | How long the change takes. |
+| `ease` | `linear`, `in` (slow start), `out` (fast start, soft stop: eye movements), `smooth` (default). |
+| `hold_ms` | Pause after the change. |
+| `repeat` | Do this step several times. |
+| `anim` | Play another animation here, e.g. `{"anim": "double_blink"}`. |
+
+Any number can be `[min, max]` for a random value, e.g. `"hold_ms": [300, 1100]`.
+For the whole animation: `repeat`, and `"keep": true` to stay in its last
+mood (otherwise the eyes return to the rules' mood and to the middle).
+`blink`, `double_blink`, `wake_up` and `sleep` are used by the companion itself.
+
+### Add a rule (rules.json)
+
+```json
+{"id": "cold_oil_rev", "when": ["oil_c < $oil_warm_c", "rpm > 4500"], "mood": "worried",
+ "say": "Easy, the oil is still cold.", "level": 1, "cooldown_s": 120}
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | Short name, shown in the log. |
+| `when` | Conditions that must all be true: `"<signal> <op> <value>"` with `<`, `<=`, `>`, `>=`, `==`, `!=`. The value can be a number, `true`/`false`, a word, or `$name` for a threshold from settings.json. |
+| `mood` | His mood while the rule is active. |
+| `idle` | What the eyes do meanwhile, e.g. `{"play": ["look_around"], "every_s": [0.5, 2]}`. |
+| `play` | An animation, played when the rule becomes active. |
+| `say` | A line, said when the rule becomes active. |
+| `level` | 1 important, 2 normal, 3 chatter. Said only up to `chattiness` in settings. |
+| `cooldown_s` | At least this long before `play` and `say` fire again (default 30). |
+| `hold_s` | Stay active this long after the conditions stop (smooths out flickering). |
+| `note` | Your comment; ignored. |
+
+Signals: `ignition`, `speed_kmh`, `rpm`, `oil_c`, `coolant_c`, `g_long`
+(braking is negative), `g_lat` (left turn is negative), `motion_g`
+(Modulino Movement), `place` (id of the place you are in), `running_s`
+(seconds since the ignition went on). **The order is the priority**: when
+several active rules have a mood, the first one in the file wins. That is why
+the warnings come first, then speed, then the Modulino.
+
+### Add a place (places.json)
+
+Easiest in the simulator: Configure, Places, Add place. Click the map first
+and use "Use the map position", choose any photo (it is cropped to the middle
+square and scaled to 128 × 128 in the browser), and save. By hand:
+
+```json
+{"id": "kastelruth", "name": "Kastelruth / Castelrotto", "lat": 46.567, "lon": 11.567, "radius_m": 2000,
+ "image": "schlern.png", "caption": "Schlern", "say": "There's the Schlern.", "show_s": 8, "cooldown_min": 60}
+```
+
+The picture must be a 128 × 128 PNG in `assets/images/`. A place triggers
+when you come closer than `radius_m`, and is left only beyond
+`radius_m × (1 + place_exit_margin)`, so GPS jitter at the edge does not
+trigger it again; after that it stays quiet for `cooldown_min` (the log says
+so). `python3 tools/make_placeholders.py` redraws the two placeholder pictures.
+
+### settings.json
+
+Settings you leave out use the defaults in `python/companion/defaults.py`.
+
+| Field | Meaning |
+|---|---|
+| `displays` | 1: both eyes on one OLED. 2: one OLED per eye. |
+| `fps` | Scene updates per second. |
+| `brightness.mode`, `brightness.manual` | `"manual"` with a percentage; `"auto"` will follow sunrise and sunset. |
+| `layout` | How far the eyes move when looking around, and their size with two displays. |
+| `mood_ms` | How long a change of mood takes. |
+| `idle` | Animations played now and then when no rule says otherwise, and how often. |
+| `chattiness` | 0 silent, 1 important lines only, 2 normal, 3 everything. |
+| `say_gap_s` | At least this long between two lines. |
+| `sleep_after_off_s` | Display off this long after the ignition is turned off. |
+| `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |
+| `thresholds` | Numbers the rules use as `$name`. Add your own. |
 
 ## Where the next parts plug in
 
 - **OLED**: a renderer in the sketch that draws scenes by the rules in
   PROTOCOL.md; `python/main.py` forwards scenes over Bridge. The logic does not change.
 - **BLE to the phone**: a second transport in `python/main.py` carrying the same messages.
-- **OBD dongle**: replaces the simulated car (step 3) behind the same interface.
-- **AI chat**: the chat handler (step 3) answers from local data until then.
-- **Voice**: speaks the `say` messages.
+- **OBD dongle**: replaces `car_sim.py` behind the same interface (`state`, `tick()`).
+- **GPS from the phone**: the same `location` message the map sends now.
+- **Brightness from sunrise/sunset**: `Companion._brightness()`.
+- **AI chat and voice**: a `chat` message, and speaking the `say` messages.
