@@ -115,6 +115,8 @@ mood looks, **Car data** for which face goes with which car values.
 ## Run it on your PC
 
 ```bash
+git clone https://github.com/brab-one/car-companion.git
+cd car-companion
 python3 tools/run_pc.py
 ```
 
