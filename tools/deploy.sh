@@ -25,6 +25,11 @@ cp -r "$here/app.yaml" "$here/README.md" "$here/python" "$here/assets" "$here/sk
 rm -rf "$stage/assets/images"
 find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
 
+# Stop the running app first: it watches its config files and would check new
+# ones with its old code while they are being copied.
+echo "Stopping the app ..."
+adb shell TMPDIR=/tmp arduino-app-cli app stop "$APP_DIR" >/dev/null 2>&1 || true  # may not exist yet
+
 echo "Copying the app to $APP_DIR ..."
 adb shell mkdir -p "$APP_DIR"
 adb push "$stage"/* "$APP_DIR/" >/dev/null
@@ -51,9 +56,9 @@ push_data "$here/assets/images" "$APP_DIR/assets/images" "*.png"
 # flash; unplugging the board in that time leaves them empty. Write them now.
 adb shell sync
 
-echo "Restarting the app (it compiles and flashes the sketch each time, about a minute) ..."
+echo "Starting the app (it compiles and flashes the sketch each time, about a minute) ..."
 # adb sets TMPDIR to Android's /data/local/tmp, which the board does not have.
-adb shell TMPDIR=/tmp arduino-app-cli app restart "$APP_DIR"
+adb shell TMPDIR=/tmp arduino-app-cli app start "$APP_DIR"
 adb forward tcp:$PORT tcp:7000 >/dev/null
 
 echo
