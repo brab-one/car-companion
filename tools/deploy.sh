@@ -47,6 +47,10 @@ push_data() {
 push_data "$here/config" "$APP_DIR/config" "*.json"
 push_data "$here/assets/images" "$APP_DIR/assets/images" "*.png"
 
+# Linux keeps new files in memory for up to 30 s before writing them to the
+# flash; unplugging the board in that time leaves them empty. Write them now.
+adb shell sync
+
 echo "Restarting the app (it compiles and flashes the sketch each time, about a minute) ..."
 # adb sets TMPDIR to Android's /data/local/tmp, which the board does not have.
 adb shell TMPDIR=/tmp arduino-app-cli app restart "$APP_DIR"
