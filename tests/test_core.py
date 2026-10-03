@@ -90,6 +90,17 @@ class CompanionTest(unittest.TestCase):
         animations = {m["animation"] for m, _ in self.sent_of("status")}
         self.assertTrue({"visor_down", "visor_up"} <= animations)
 
+    def test_what_he_says_shows_in_a_bubble_and_the_face_makes_room(self):
+        self.send(type="sim_car", speed_kmh=50)
+        self.run_for(3)
+        self.send(type="sim_motion", g=1.0, s=1)  # "Hey, stop shaking me!"
+        self.run_for(0.5)
+        scene = self.brain.scene
+        self.assertIn("bubble", scene)
+        self.assertLess(scene["displays"][0]["shapes"][0]["y"], 59)  # the eyes moved up
+        self.run_for(6)
+        self.assertNotIn("bubble", self.brain.scene)
+
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)
         self.run_for(1)

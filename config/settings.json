@@ -7,6 +7,7 @@
   "mood_ms": 350,
   "idle": {"play": ["glance_left", "glance_right", "look_up"], "every_s": [5, 12]},
   "chattiness": 2,
+  "bubble": {"enabled": true, "color": "#FFFFFF", "min_s": 2.5, "per_char_s": 0.06},
   "say_gap_s": 8,
   "sleep_after_off_s": 20,
   "place_exit_margin": 0.2,

@@ -17,8 +17,8 @@ import queue
 import time
 from pathlib import Path
 
-from . import layout, validate
-from .animator import Animator
+from . import layout, speech, validate
+from .animator import Animator, Tween
 from .car_sim import SCENARIOS, CarSim
 from .config_store import ConfigStore
 from .geofence import Geofences
@@ -30,6 +30,7 @@ PROTOCOL_VERSION = 1
 CONFIG_POLL_S = 1.0  # how often to look for config files changed on disk
 CAR_SEND_S = 0.2     # car data goes to the app at most 5 times a second
 LOG_KEEP = 50        # log lines kept for apps that connect later
+LIFT_MS = 250        # how fast the face moves up for a speech bubble, and back
 SOURCE_TEXT = {"file": "file", "last_good": "last good version", "defaults": "built-in defaults"}
 
 
@@ -59,6 +60,8 @@ class Companion:
         self._apply_config(now)
         self.location = None     # last position from the phone (or the simulator's map)
         self.picture = None      # (place, until) while a place picture is shown
+        self.speech = None       # (bubble, until) while a speech bubble is shown
+        self.lift = Tween(0.0)   # the face moves up while he speaks
         self.asleep = True       # the first tick wakes him up when the ignition is on
         self.scene = self.status = None
         self._display_off_at = now + self.store.data["settings"]["sleep_after_off_s"]
@@ -193,6 +196,11 @@ class Companion:
         self._last_say = now
         self.send({"type": "say", "text": text, "source": source})
         self.log("say", text, source)
+        look = settings["bubble"]
+        if look["enabled"]:
+            bubble = speech.bubble(text, look["color"])
+            self.speech = (bubble, now + speech.seconds(text, look["min_s"], look["per_char_s"]))
+            self.lift.to(speech.lift(bubble), now, LIFT_MS)
 
     # ---- incoming messages ----------------------------------------------------
 
@@ -309,6 +317,9 @@ class Companion:
         shape, look, blink = self.animator.update(now)
         if self.picture and now >= self.picture[1]:
             self.picture = None
+        if self.speech and now >= self.speech[1]:
+            self.speech = None
+            self.lift.to(0.0, now, LIFT_MS)
         if now >= self._display_off_at:
             scene = {"kind": "off"}
         elif self.picture:
@@ -316,7 +327,10 @@ class Companion:
             scene = {"kind": "image", "image": place["image"], "caption": place.get("caption", ""),
                      "brightness": brightness}
         else:
-            scene = layout.eyes_scene(shape, settings, look, blink, brightness, self.store.data["faces"]["visor"])
+            scene = layout.eyes_scene(shape, settings, look, blink, brightness,
+                                      self.store.data["faces"]["visor"], self.lift.value(now))
+        if self.speech and scene["kind"] != "off":
+            scene["bubble"] = self.speech[0]
         if scene != self.scene:
             self.scene = scene
             self.send({"type": "scene", "scene": scene})

@@ -100,7 +100,7 @@ down, at least partly):
 
 `x`, `y`, `w`, `h`, `r` place a rounded rectangle as for an eye (no slant, no
 cut). While it slides down, `y` goes from just above the display to its
-place. Drawing rule (`fillVisor()` in `render_canvas.js`): for each pixel of
+place; it moves with the eyes. Drawing rule (`fillVisor()` in `render_canvas.js`): for each pixel of
 the rectangle, with `left = x - w/2`, `top = y - h/2` and
 `s = (px + 0.5 - left) + (py + 0.5 - top)` (the distance along a "/" diagonal):
 
@@ -108,6 +108,24 @@ the rectangle, with `left = x - w/2`, `top = y - h/2` and
   `shine` mixed over the pixel at 0.9 (`glint` moves the stripes across the visor);
 - everywhere else: `color` mixed over the pixel at `alpha`
   (`new = color * alpha + old * (1 - alpha)`, per colour channel).
+
+Any scene can have a speech `bubble`, drawn last, on the first display only:
+
+```json
+"bubble": {"x": 64, "y": 111, "w": 110, "h": 28, "r": 5, "color": "#FFFFFF", "tail": [64, 91],
+           "text": {"x": 14, "y": 102, "w": 101, "h": 16, "bits": "<base64>"}}
+```
+
+- The box: a rounded rectangle as for an eye. Pixels inside it but not
+  inside the same box 1 px smaller on every side (`w - 2`, `h - 2`, `r - 1`)
+  are the outline, in `color`; the rest of the box is black.
+- The tail: the triangle with its tip at `tail` and its base on the box's top
+  edge, 4 px each side of the tip's x at the edge (half-width
+  `4 * (py - tip_y) / (top - tip_y)`), filled with `color`.
+- The text: a 1-bit picture of `w` x `h` pixels at (`x`, `y`). `bits` is
+  base64; each row takes `ceil(w / 8)` bytes, the first pixel is the highest
+  bit. Set bits are drawn in `color`. Python wraps the text and draws it
+  with its 5 x 7 font (`python/companion/font.py`), so renderers need no font.
 
 Other kinds:
 

@@ -8,11 +8,12 @@ SIZE = 128  # display width and height in pixels
 MIN_H = 2   # a closed eye is a thin line, not nothing
 
 
-def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0, visor=None):
+def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0, visor=None, lift=0.0):
     """pair: eye parameters from faces.resolve() (possibly mid-animation).
     look: x and y from -1 to 1; positive is right / down, as seen by the viewer.
     blink: 0 is open, 1 is closed. brightness: 0 to 1.
-    visor: how the visor looks (faces.json "visor"); pair["visor"] says how far it is down."""
+    visor: how the visor looks (faces.json "visor"); pair["visor"] says how far it is down.
+    lift: pixels the whole face moves up (negative), e.g. to make room for a speech bubble."""
     lay = settings["layout"]
     dx = look[0] * lay["look_x_px"]
     dy = look[1] * lay["look_y_px"]
@@ -20,39 +21,41 @@ def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0, visor
     if settings["displays"] == 2:
         # One eye per display, centred and scaled up. Display 1 is on the viewer's left.
         s = lay["dual_scale"]
-        x, y = SIZE / 2 + dx * s, SIZE / 2 + dy * s
+        x, y = SIZE / 2 + dx * s, SIZE / 2 + dy * s + lift
         displays = [
             [_shape(left, x, y, "right", blink, s)],
             [_shape(right, x, y, "left", blink, s)],
         ]
     else:
         half_gap = pair["gap"] / 2
-        y = SIZE / 2 + dy
+        y = SIZE / 2 + dy + lift
         displays = [[
             _shape(left, SIZE / 2 - half_gap - left["w"] / 2 + dx, y, "right", blink),
             _shape(right, SIZE / 2 + half_gap + right["w"] / 2 + dx, y, "left", blink),
         ]]
     scale = lay["dual_scale"] if settings["displays"] == 2 else 1.0
     down = pair.get("visor", 0)
+    follow = (dx * scale, dy * scale)  # the visor moves with the eyes
     return {
         "kind": "eyes",
         "brightness": brightness,
         "displays": [{"shapes": shapes,
-                      **({"visor": _visor(visor, down, scale, pair.get("glint", 0.2))} if visor and down > 0 else {})}
+                      **({"visor": _visor(visor, down, scale, pair.get("glint", 0.2), lift, follow)}
+                         if visor and down > 0 else {})}
                      for shapes in displays],
     }
 
 
-def _visor(look, down, scale=1.0, glint=0.2):
+def _visor(look, down, scale=1.0, glint=0.2, lift=0.0, follow=(0.0, 0.0)):
     """The visor slides down from above the top edge; down = 1 is all the way down
-    (a little more makes it bounce). It belongs to the head, so it does not follow
-    the eyes' look. glint: where its reflection is, across the visor."""
+    (a little more makes it bounce). Once down it moves with the eyes (follow).
+    glint: where its reflection is, across the visor."""
     h = round(look["h"] * scale)
     w = min(SIZE, round(look["w"] * scale))
-    lowest = SIZE / 2 + (look["y"] - SIZE / 2) * scale
+    lowest = SIZE / 2 + (look["y"] - SIZE / 2) * scale + lift + follow[1]
     highest = -h / 2 - 1  # just out of sight
     return {
-        "x": SIZE // 2,
+        "x": round(SIZE / 2 + follow[0]),
         "y": round(highest + (lowest - highest) * down),
         "w": w,
         "h": h,

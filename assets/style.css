@@ -66,15 +66,6 @@ main {
 }
 .displays[data-count="2"] canvas { width: 384px; }
 
-.speech {
-  max-width: 512px;
-  margin: 12px 0 0;
-  padding: 8px 12px;
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  color: var(--accent);
-}
-
 .hint { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .status { margin: 0; font-size: 14px; }
 

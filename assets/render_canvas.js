@@ -23,6 +23,7 @@ export class CanvasRenderer {
       const img = ctx.createImageData(SIZE, SIZE);
       fillBlack(img);
       draw?.(img, scene, i, () => this.scene === scene && this.draw(scene));
+      if (scene.bubble && i === 0) fillBubble(img, scene.bubble, scene.brightness ?? 1);
       ctx.putImageData(img, 0, 0);
     });
   }
@@ -134,6 +135,38 @@ function fillVisor(img, visor, brightness) {
       const [color, alpha] = shiny ? [shine, 0.9] : [tint, visor.alpha];
       const p = (y * SIZE + x) * 4;
       for (let c = 0; c < 3; c++) img.data[p + c] = Math.round(color[c] * alpha + img.data[p + c] * (1 - alpha));
+    }
+  }
+}
+
+// The speech bubble: a black rounded box with a 1 px outline, a solid tail
+// pointing up at the face, and the text as a 1-bit picture made in Python
+// (speech.py). Drawn over everything else, on the first display only.
+function fillBubble(img, bubble, brightness) {
+  const [r, g, b] = panelColor(parseInt(bubble.color.slice(1), 16), brightness);
+  const set = (x, y, on) => {
+    if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return;
+    const p = (y * SIZE + x) * 4;
+    [img.data[p], img.data[p + 1], img.data[p + 2]] = on ? [r, g, b] : [0, 0, 0];
+  };
+  const outer = { ...bubble, slant: 0, cut: 0 };
+  const inner = { ...outer, w: bubble.w - 2, h: bubble.h - 2, r: Math.max(0, bubble.r - 1) };
+  const top = bubble.y - bubble.h / 2;
+  const [tipX, tipY] = bubble.tail;
+  for (let y = Math.floor(tipY); y < Math.ceil(bubble.y + bubble.h / 2); y++) {
+    for (let x = Math.floor(bubble.x - bubble.w / 2); x < Math.ceil(bubble.x + bubble.w / 2); x++) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      if (insideEye(px, py, outer)) set(x, y, !insideEye(px, py, inner)); // outline, black inside
+      else if (py < top && Math.abs(px - tipX) <= (4 * (py - tipY)) / (top - tipY)) set(x, y, true); // tail
+    }
+  }
+  const text = bubble.text;
+  const bits = Uint8Array.from(atob(text.bits), (c) => c.charCodeAt(0));
+  const stride = Math.ceil(text.w / 8);
+  for (let y = 0; y < text.h; y++) {
+    for (let x = 0; x < text.w; x++) {
+      if (bits[y * stride + (x >> 3)] & (0x80 >> (x & 7))) set(text.x + x, text.y + y, true);
     }
   }
 }

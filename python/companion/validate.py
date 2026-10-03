@@ -288,6 +288,15 @@ def _check_settings(data, errors):
     _number(data["mood_ms"], "mood_ms", errors, 0, 5000)
     _idle(data["idle"], "idle", errors)
     _range(data["chattiness"], "chattiness", errors, 0, 3, whole=True)
+    bubble = data["bubble"]
+    if _object(bubble, "bubble", errors):
+        _known_keys(bubble, spec["bubble"], "bubble", errors)
+        if not isinstance(bubble["enabled"], bool):
+            errors.append(f"bubble.enabled: expected true or false, got {_show(bubble['enabled'])}")
+        if not (isinstance(bubble["color"], str) and HEX_COLOR.fullmatch(bubble["color"])):
+            errors.append(f'bubble.color: expected a colour like "#FFFFFF", got {_show(bubble["color"])}')
+        _number(bubble["min_s"], "bubble.min_s", errors, 0.5, 30)
+        _number(bubble["per_char_s"], "bubble.per_char_s", errors, 0, 1)
     _number(data["say_gap_s"], "say_gap_s", errors, 0, 3600)
     _number(data["sleep_after_off_s"], "sleep_after_off_s", errors, 0, 3600)
     _number(data["place_exit_margin"], "place_exit_margin", errors, 0, 2)

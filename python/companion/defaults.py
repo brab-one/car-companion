@@ -26,6 +26,12 @@ SETTINGS = {
         "every_s": [5, 12],
     },
     "chattiness": 2,           # 0 silent, 1 important lines only, 2 normal, 3 everything
+    "bubble": {                # what he says, in a speech bubble on the display
+        "enabled": True,
+        "color": "#FFFFFF",    # outline and text
+        "min_s": 2.5,          # shown at least this long,
+        "per_char_s": 0.06,    # plus this per character (at most 10 s)
+    },
     "say_gap_s": 8,            # at least this many seconds between two lines
     "sleep_after_off_s": 20,   # display off this long after the ignition is turned off
     "place_exit_margin": 0.2,  # a place is left at radius_m * (1 + this), see geofence.py
@@ -41,7 +47,7 @@ SETTINGS = {
 
 VISOR = {  # how the visor looks; moods say how far it is down ("visor": 0 up .. 1 down)
     "y": 62,              # centre when fully down
-    "w": 124, "h": 44, "r": 12,
+    "w": 100, "h": 44, "r": 12,
     "color": "#0B1E3A",   # the tint
     "alpha": 0.82,        # 0 clear .. 1 the eyes cannot be seen behind it
     "shine": "#9CC8FF",   # the reflection stripes

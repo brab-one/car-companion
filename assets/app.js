@@ -9,7 +9,6 @@ import { ConfigPanel } from './panel_config.js';
 import { LogPanel } from './panel_log.js';
 
 const CHANNEL = 'msg';
-const SPEECH_MS = 5000; // how long a spoken line stays under the display
 const ui = new WebUI(); // from libs/arduino.js
 const send = (msg) => ui.send_message(CHANNEL, msg);
 
@@ -22,8 +21,6 @@ const where = new LocationPanel(document.querySelector('#location'), send);
 const configure = new ConfigPanel(document.querySelector('#config'), send, app);
 const log = new LogPanel(document.querySelector('#log'));
 const connection = document.querySelector('#connection');
-const speech = document.querySelector('#speech');
-let speechTimer = 0;
 
 document.querySelector('#open-config').addEventListener('click', () => configure.open());
 document.querySelector('#edit-faces').addEventListener('click', () => configure.open('faces'));
@@ -80,11 +77,8 @@ const handlers = {
     car.setCar(m);
     where.setCar(m);
   },
-  say(m) {
-    speech.textContent = `“${m.text}”`;
-    speech.hidden = false;
-    clearTimeout(speechTimer);
-    speechTimer = setTimeout(() => (speech.hidden = true), SPEECH_MS);
+  say() {
+    // Shown on the display as a speech bubble (part of the scene); later also spoken aloud.
   },
   log(m) {
     log.add(m);

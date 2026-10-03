@@ -23,7 +23,7 @@ phone app, the car (OBD dongle) and the phone's GPS.
 |---|---|
 | Cold oil (below 80 °C) at high revs (above 4500 rpm) | worried, nervous glances, "Easy, the oil is still cold." |
 | Coolant from 105 °C | worried, nervous glances, a warning |
-| Speed from 90 km/h | racing: he glances up, his visor slams down with a bounce and a glint sweeps across it; focused eyes behind it. 8 s after he drops below 90 km/h it lifts again (his eyes follow it up, then a relieved double blink) |
+| Speed from 90 km/h | racing: he glances up, his visor slams down with a bounce and a glint sweeps across it; it moves with his eyes. 8 s after he drops below 90 km/h it lifts again (his eyes follow it up, then a relieved double blink) |
 | Board shaken (Modulino Movement from 0.35 g) | angry, "Hey, stop shaking me!" |
 | Standing still or crawling (below 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
 | Driving with cold oil (below 50 °C) | worried |
@@ -32,6 +32,8 @@ phone app, the car (OBD dongle) and the phone's GPS.
 | Entering a place | its picture for a few seconds, and a line |
 | Ignition off | falls asleep; the display goes off 20 s later |
 
+What he says appears in a speech bubble at the bottom of the display (his
+face moves up to make room), also over place pictures, like a caption.
 He blinks every few seconds (`blink_s` of the mood; worried blinks more).
 All of this is set in the config files; nothing is hard-coded. The easy way
 to change it is the Configure dialog in the simulator: **Faces** for how each
@@ -167,8 +169,8 @@ the default mood (`neutral`) and only lists what changes:
 
 How the visor looks is set once, in `"visor"` at the end of faces.json:
 `y` (its centre when down), `w`, `h`, `r`, `color` (the tint), `alpha` (0 clear
-to 1 dark) and `shine` (the reflection stripes). Its eyes stay faintly visible
-behind it and keep moving; the visor itself stays put.
+to 1 dark), `shine` (the reflection stripes) and `glint` (where they rest). The
+eyes stay faintly visible behind it, and the visor moves with them.
 
 ### Add an animation (animations.json)
 
@@ -266,6 +268,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 | `mood_ms` | How long a change of mood takes. |
 | `idle` | Animations played now and then when no rule says otherwise, and how often. |
 | `chattiness` | 0 silent, 1 important lines only, 2 normal, 3 everything. |
+| `bubble` | The speech bubble: `enabled`, `color` (outline and text), shown for `min_s` plus `per_char_s` per character (at most 10 s). Up to 3 lines of 18 characters; longer lines end with "...". |
 | `say_gap_s` | At least this long between two lines. |
 | `sleep_after_off_s` | Display off this long after the ignition is turned off. |
 | `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |

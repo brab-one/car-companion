@@ -131,6 +131,7 @@ export class FacesEditor {
       color('color', 'Visor tint'),
       color('shine', 'Reflection'),
       slider('alpha', 'Darkness (%)', 0, 100, (v) => Math.round(v * 100), (v) => v / 100),
+      slider('w', 'Visor width', 40, 128),
       slider('h', 'Visor height', 8, 80),
       slider('y', 'Visor position', 20, 108),
       slider('r', 'Visor roundness', 0, 30),

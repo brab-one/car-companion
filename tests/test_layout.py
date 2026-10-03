@@ -55,12 +55,19 @@ class LayoutTest(unittest.TestCase):
         heights = []
         for down in (0.1, 0.5, 1.0):
             pair["visor"] = down
-            visor = layout.eyes_scene(pair, self.settings, look=(1, 1), visor=VISOR)["displays"][0]["visor"]
+            visor = layout.eyes_scene(pair, self.settings, visor=VISOR)["displays"][0]["visor"]
             heights.append(visor["y"])
-            self.assertEqual((visor["x"], visor["w"], visor["h"]), (64, VISOR["w"], VISOR["h"]))  # does not follow the look
+            self.assertEqual((visor["x"], visor["w"], visor["h"]), (64, VISOR["w"], VISOR["h"]))
         self.assertEqual(heights, sorted(heights))
         self.assertEqual(heights[-1], VISOR["y"])
         self.assertLess(heights[0] + VISOR["h"] / 2, 10)  # mostly above the display
+
+    def test_visor_moves_with_the_eyes(self):
+        pair = dict(NEUTRAL, visor=1)
+        scene = layout.eyes_scene(pair, self.settings, look=(1, -1), visor=VISOR)
+        visor, eye = scene["displays"][0]["visor"], shapes(scene)[0]
+        self.assertEqual((visor["x"], visor["y"]), (64 + 18, VISOR["y"] - 12))
+        self.assertEqual(eye["y"], 64 - 12)
 
 
 if __name__ == "__main__":
