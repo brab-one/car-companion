@@ -5,17 +5,83 @@ UNO Q. It shows an animated face on a 128 × 128 OLED, reacts to how the car
 is driven, shows pictures when you drive into certain places, and is
 configured from a phone app.
 
-Until the hardware arrives, a browser simulator stands in for the OLED, the
-phone app, the car (OBD dongle) and the phone's GPS.
+![Six frames of the 128 × 128 display: calm, happy and looking around, worried and talking, racing with the visor down, a place picture, a clip](docs/display.png)
 
-**Progress**
+*Drawn by the simulator, pixel for pixel: calm, happy and looking around,
+worried and talking, racing with the visor down, a place picture, a clip.*
+
+Until the hardware arrives, a browser simulator stands in for the OLED, the
+phone app, the car (OBD dongle) and the phone's GPS. All the features below work in it.
+
+## Features
+
+- **A face with moods**: neutral, happy, worried, angry, surprised, sleepy, suspicious and
+  racing, each with its own shape and colour. He blinks, glances around (into the corners too,
+  then back to the middle) and plays small animations.
+- **Reacts to the car**: speed, revs, oil and coolant temperature and g-forces pick his mood.
+  Happy and looking around when standing still, worried while the oil is cold, and from 90 km/h
+  a visor slams down that lifts again 8 s after slowing down.
+- **Feels the board move**: with a Modulino Movement, shaking the board makes him angry.
+- **Talks**: short lines in a speech bubble on the display. How chatty he is can be set.
+- **Knows places**: drive into a place and he shows its picture for a few seconds, with a line.
+- **Clips**: add any video or GIF. It is scaled down to the display and shows every few minutes
+  for a few seconds, optionally only when, say, you drive faster than 20 km/h.
+- **Clear priorities**: a place picture comes first, then a clip, then the face.
+- **Sleeps**: when the ignition goes off he falls asleep, and the display turns off.
+- **Everything in JSON files**: faces, animations, rules, places, clips and settings, checked
+  with clear error messages. A broken file falls back to the last good version, and changes
+  apply live.
+- **Configure dialog**: a face editor with a live preview, a table of which face goes with
+  which car values, places with photos, clips, and every file as JSON.
+- **Browser simulator**: the whole app on your PC, with a pixel-exact display, car controls and
+  scenarios (cold start, launch, hard braking, ...), a map with a route player, and a log.
+- **Safe with power cuts**: the car can cut the power at any moment. Files are written rarely
+  and atomically, so they are never left half-written.
+- **Small**: only the Python standard library and plain JavaScript (plus Leaflet for the map),
+  no build step, unit tests for the logic.
+
+## What you need
+
+**To try it on a PC**, no hardware:
+
+- Python 3.10 or newer, nothing to install
+- A current browser. GIF clips need Chrome or Edge, and the map needs internet.
+
+**To run it on the board:**
+
+- An Arduino UNO Q, with its first-time setup done in Arduino App Lab
+- Its USB-C cable, and a Linux or macOS PC with adb (Arch: `android-tools`, Debian and Ubuntu: `adb`)
+- In the car: USB-C power for the board
+- Optional: a Modulino Movement on the Qwiic connector, for the motion sensing
+
+**The display** (drawing on it is the next step, see Progress):
+
+- A 1.5" 128 × 128 RGB OLED with an SSD1351 driver (SPI). The board's pins are 3.3 V, so
+  give the OLED 3.3 V too, not 5 V.
+
+| OLED | UNO Q |
+|---|---|
+| VCC | 3.3V |
+| GND | GND |
+| DIN (MOSI) | D11 |
+| CLK (SCK) | D13 |
+| CS | D10 |
+| DC | D8 |
+| RST | D7 |
+
+**Not needed yet**: an OBD-II dongle (the car's data is simulated for now) and the phone
+app (the simulator's phone panel and map stand in for it).
+
+## Progress
 
 - [x] 1. App skeleton and simulator showing the eyes from `faces.json`
 - [x] 2. Animation player and `animations.json`: blinking, glances, looking around, waking up, falling asleep
 - [x] 3. Car panel and `rules.json`: speed, revs, temperatures, g-forces, scenarios; plus the Modulino Movement
 - [x] 4. Places and location panel with a map and a route player (sunrise/sunset dimming still to do)
 - [x] 5. Configure dialog: places with pictures, and every config file (the chat stub is still to do)
+- [x] Face editor, faces by car data, speech bubble, video and GIF clips
 - [ ] 6. LED matrix output on the board
+- [ ] Drawing on the real OLED (measuring the Bridge's speed first)
 
 ## What he does
 
@@ -143,6 +209,7 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 | `sketch/` | The microcontroller: reads the Modulino Movement; later the LED matrix and OLED. |
 | `assets/` | The simulator page, served by the board or by `run_pc.py`. |
 | `tools/` | `run_pc.py`, `deploy.sh`, `make_placeholders.py`, and the PC stand-in for Arduino's `arduino.js`. |
+| `docs/` | Pictures for this README. Not copied to the board. |
 | `tests/` | Unit tests for the logic. |
 | `PROTOCOL.md` | Every message between app and companion, the scene format and the Bridge calls. |
 
