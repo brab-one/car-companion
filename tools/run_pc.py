@@ -149,7 +149,11 @@ def main():
     clients = Clients()
     brain = Companion(ROOT / "config", clients.send)
     host = "0.0.0.0" if args.lan else "127.0.0.1"
-    server = ThreadingHTTPServer((host, args.port), make_handler(clients, brain))
+    try:
+        server = ThreadingHTTPServer((host, args.port), make_handler(clients, brain))
+    except OSError as e:
+        sys.exit(f"Cannot use port {args.port}: {e.strerror}. Is the simulator already running? "
+                 f"Stop it with Ctrl+C, or start this one with --port {args.port + 1}.")
     threading.Thread(target=server.serve_forever, daemon=True).start()
     print(f"Simulator running: http://localhost:{args.port}  (Ctrl+C stops it)", flush=True)
     try:
