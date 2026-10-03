@@ -59,7 +59,7 @@ class Rule:
 
     def update(self, signals, now):
         """Re-evaluate. Returns True when the rule fires (just became active, cooldown over)."""
-        if all(_holds(signals.get(signal), op, value) for signal, op, value in self.conditions):
+        if holds_all(self.conditions, signals):
             self.true_until = now + self.spec.get("hold_s", 0)
         was_active = self.active
         self.active = now <= self.true_until
@@ -99,6 +99,11 @@ class Rules:
                 result.append((rule, fired))
         self.ended = [rule for rule in self.rules if rule.ended]
         return result
+
+
+def holds_all(conditions, signals):
+    """True when every parsed condition holds for these signals."""
+    return all(_holds(signals.get(signal), op, value) for signal, op, value in conditions)
 
 
 def _holds(value, op, target):

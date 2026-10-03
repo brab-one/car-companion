@@ -74,5 +74,7 @@ RULES = {"version": 1, "rules": []}
 
 PLACES = {"version": 1, "places": []}
 
+CLIPS = {"version": 1, "clips": []}
+
 FILES = {"faces": FACES, "animations": ANIMATIONS, "rules": RULES,
-         "places": PLACES, "settings": SETTINGS}
+         "places": PLACES, "clips": CLIPS, "settings": SETTINGS}

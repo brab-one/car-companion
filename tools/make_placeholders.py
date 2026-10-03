@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Draw placeholder place pictures (128 x 128 PNG) into assets/images/.
+"""Draw placeholder place pictures (128 x 128 PNG) into assets/images/ and an
+example clip (16 frames of a spinning wheel) into assets/clips/.
 
-    python3 tools/make_placeholders.py           only pictures that are missing
+    python3 tools/make_placeholders.py           only files that are missing
     python3 tools/make_placeholders.py --force   overwrite them too
 
-Your own photos are added in the simulator (Configure > Places), which crops
-and scales them in the browser. Standard library only."""
+Your own photos, videos and GIFs are added in the simulator (Configure >
+Places, Clips), which scales them in the browser. Standard library only."""
 
 import argparse
+import math
 import struct
 import zlib
 from pathlib import Path
 
 SIZE = 128
-IMAGES = Path(__file__).resolve().parent.parent / "assets" / "images"
+ASSETS = Path(__file__).resolve().parent.parent / "assets"
+IMAGES = ASSETS / "images"
+CLIPS = ASSETS / "clips"
+WHEEL_FRAMES = 16
 
 
 def ridge(points):
@@ -58,6 +63,34 @@ def scene(points):
     return rows
 
 
+def wheel(frame):
+    """A five-spoke wheel, turned a little further in every frame (one spoke-gap per loop)."""
+    turn = frame / WHEEL_FRAMES * 2 * math.pi / 5
+    rows = []
+    for y in range(SIZE):
+        row = []
+        for x in range(SIZE):
+            dx, dy = x + 0.5 - SIZE / 2, y + 0.5 - SIZE / 2
+            r = math.hypot(dx, dy)
+            angle = (math.atan2(dy, dx) - turn) % (2 * math.pi / 5)
+            spoke = min(angle, 2 * math.pi / 5 - angle) * r < 5  # 10 px wide spokes
+            if r > 60:
+                px = (0, 0, 0)
+            elif r > 46:
+                px = (34, 34, 38)                      # tyre
+            elif r > 42:
+                px = (190, 196, 206)                   # rim edge
+            elif r < 9:
+                px = (60, 64, 72)                      # hub
+            elif spoke:
+                px = (200, 206, 216)                   # spokes
+            else:
+                px = (12, 12, 14)                      # between the spokes
+            row.append(px)
+        rows.append(row)
+    return rows
+
+
 def write_png(path, rows):
     raw = b"".join(b"\x00" + bytes(c for px in row for c in px) for row in rows)
 
@@ -65,7 +98,7 @@ def write_png(path, rows):
         return (struct.pack(">I", len(data)) + tag + data
                 + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
 
-    header = struct.pack(">IIBBBBB", SIZE, SIZE, 8, 2, 0, 0, 0)  # 8-bit RGB
+    header = struct.pack(">IIBBBBB", len(rows[0]), len(rows), 8, 2, 0, 0, 0)  # 8-bit RGB
     path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
                      + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
@@ -75,13 +108,15 @@ def main():
     parser.add_argument("--force", action="store_true", help="overwrite existing pictures")
     args = parser.parse_args()
     IMAGES.mkdir(parents=True, exist_ok=True)
-    for name, points in (("schlern.png", SCHLERN), ("geisler.png", GEISLER)):
-        path = IMAGES / name
+    CLIPS.mkdir(parents=True, exist_ok=True)
+    jobs = [(IMAGES / "schlern.png", lambda: scene(SCHLERN)), (IMAGES / "geisler.png", lambda: scene(GEISLER)),
+            (CLIPS / "wheel.png", lambda: [row for f in range(WHEEL_FRAMES) for row in wheel(f)])]
+    for path, draw in jobs:
         if path.exists() and not args.force:
             print(f"kept {path.name} (use --force to overwrite)")
             continue
-        write_png(path, scene(points))
-        print(f"wrote {path.relative_to(IMAGES.parent.parent)}")
+        write_png(path, draw())
+        print(f"wrote {path.relative_to(ASSETS.parent)}")
 
 
 if __name__ == "__main__":

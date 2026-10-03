@@ -2,6 +2,7 @@
 //   Faces     how each mood looks (config_faces.js)
 //   Car data  which face goes with which range of a car value (config_ranges.js)
 //   Places    places with their pictures (config_places.js)
+//   Clips     videos and GIFs shown now and then (config_clips.js)
 //   Files     any config file as JSON (below)
 // The companion checks everything before it saves (config_set, image_put)
 // and answers with the problems it found.
@@ -9,6 +10,7 @@
 import { FacesEditor } from './config_faces.js';
 import { RangesEditor } from './config_ranges.js';
 import { PlacesEditor } from './config_places.js';
+import { ClipsEditor } from './config_clips.js';
 import { compactJson, saveConfig, showMessage } from './config_common.js';
 
 const FILES = ['faces', 'animations', 'rules', 'places', 'settings'];
@@ -21,12 +23,13 @@ export class ConfigPanel {
     this.app = app;           // shared state from app.js: config, status
     this.waiting = new Map(); // "config_result:places" -> resolve, for replies
     this.tab = 'faces';
-    const ctx = { app, request: (msg, replyType) => this.#request(msg, replyType) };
+    const ctx = { app, send, request: (msg, replyType) => this.#request(msg, replyType) };
     const pane = (name) => dialog.querySelector(`#tab-${name}`);
     this.editors = {
       faces: new FacesEditor(pane('faces'), ctx),
       ranges: new RangesEditor(pane('ranges'), ctx),
       places: new PlacesEditor(pane('places'), ctx),
+      clips: new ClipsEditor(pane('clips'), ctx),
     };
     dialog.querySelector('#close-config').addEventListener('click', () => dialog.close());
     for (const tab of dialog.querySelectorAll('[data-tab]')) {
@@ -61,7 +64,7 @@ export class ConfigPanel {
     this.editors.ranges.onStatus(status);
   }
 
-  // Replies the companion sends to one client: config_result, image_result.
+  // Replies the companion sends to one client: config_result, image_result, clip_result.
   onReply(msg) {
     const key = `${msg.type}:${msg.name}`;
     this.waiting.get(key)?.(msg);

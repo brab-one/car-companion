@@ -32,8 +32,15 @@ phone app, the car (OBD dongle) and the phone's GPS.
 | Entering a place | its picture for a few seconds, and a line |
 | Ignition off | falls asleep; the display goes off 20 s later |
 
-What he says appears in a speech bubble at the bottom of the display (his
-face moves up to make room), also over place pictures, like a caption.
+What the display shows, most important first:
+
+1. **A place picture**, when you enter a place, for its "Show picture (s)" (Configure, Places).
+2. **A clip** (a video or GIF), each one every few minutes for a few seconds (Configure, Clips).
+3. **The face**, with the moods and animations the rules choose.
+
+What he says appears in a speech bubble on top of any of them, at the bottom
+of the display (his face moves up to make room). When the ignition goes off he
+falls asleep, and a little later the display turns off.
 He blinks every few seconds (`blink_s` of the mood; worried blinks more).
 All of this is set in the config files; nothing is hard-coded. The easy way
 to change it is the Configure dialog in the simulator: **Faces** for how each
@@ -69,6 +76,10 @@ The page:
     played when a row starts and when it ends. The highest matching row wins; ↑ ↓ change the
     order. Active rows are marked while you test.
   - **Places**: add and edit places with their pictures.
+  - **Clips**: add videos and GIFs. Choose any file: it is scaled down to fit the display when it
+    is bigger (never up), centred on black, and kept to 10 s at 10 frames a second, with a
+    preview. Set how long it shows, how many minutes until it comes again, and optionally only
+    when, e.g. `speed_kmh > 20`. "Play now" shows it at once.
   - **Files**: edit any config file as JSON.
 
 The map needs internet (Leaflet and OpenStreetMap); the rest works without.
@@ -126,6 +137,7 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 |---|---|
 | `config/` | All behaviour: faces, animations, rules, places, settings. |
 | `assets/images/` | Place pictures, 128 × 128 PNG. |
+| `assets/clips/` | Clips: frames of 128 × 128 under each other in one tall PNG. |
 | `python/main.py` | Board glue: WebUI and Bridge, connected to the Companion. |
 | `python/companion/` | The logic, plain Python. `core.py` is the place to start. |
 | `sketch/` | The microcontroller: reads the Modulino Movement; later the LED matrix and OLED. |
@@ -254,6 +266,22 @@ when you come closer than `radius_m`, and is left only beyond
 `radius_m × (1 + place_exit_margin)`, so GPS jitter at the edge does not
 trigger it again; after that it stays quiet for `cooldown_min` (the log says
 so). `python3 tools/make_placeholders.py` redraws the two placeholder pictures.
+
+### Add a clip (clips.json)
+
+Easiest in the simulator: Configure, Clips, Add clip, choose a video or GIF,
+save. Each clip is one tall PNG in `assets/clips/` (its frames under each
+other, each 128 × 128) and an entry like:
+
+```json
+{"id": "wheel", "name": "Spinning wheel", "file": "wheel.png", "frames": 16, "fps": 12,
+ "show_s": 5, "every_min": 5, "enabled": true, "when": ["speed_kmh > 20"]}
+```
+
+`show_s` is how long it plays (looping), `every_min` how long until it comes
+again, `when` (optional) conditions like in rules.json. When several clips are
+due, the first in the file plays first. A place picture cuts a clip short; it
+then waits for its next turn.
 
 ### settings.json
 

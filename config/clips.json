@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "clips": [
+    {"id": "wheel", "name": "Spinning wheel", "file": "wheel.png", "frames": 16, "fps": 12, "show_s": 5, "every_min": 5,
+     "enabled": true}
+  ]
+}

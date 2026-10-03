@@ -20,6 +20,7 @@ from pathlib import Path
 from . import layout, speech, validate
 from .animator import Animator, Tween
 from .car_sim import SCENARIOS, CarSim
+from .clips import ClipFiles, ClipPlayer
 from .config_store import ConfigStore
 from .geofence import Geofences
 from .images import Images
@@ -35,9 +36,10 @@ SOURCE_TEXT = {"file": "file", "last_good": "last good version", "defaults": "bu
 
 
 class Companion:
-    def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print):
+    def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print, clips_dir=None):
         """send(msg, to): deliver msg to client `to`, or to every client when to is None.
-        images_dir: where place pictures are (default: assets/images next to config/).
+        images_dir: where place pictures are (default: assets/images next to config/);
+        clips_dir: where clips are (default: clips next to images_dir).
         echo(line): prints log lines (App Lab shows them); tests pass a silent one."""
         self._send = send
         self._clock = clock
@@ -47,6 +49,7 @@ class Companion:
         self.recent_log = collections.deque(maxlen=LOG_KEEP)
         config_dir = Path(config_dir)
         self.images = Images(images_dir or config_dir.parent / "assets" / "images")
+        self.clip_files = ClipFiles(clips_dir or self.images.folder.parent / "clips")
         self.store = ConfigStore(config_dir, log=self.log)
         self.store.load_all()
         for name in self.store.names:
@@ -55,6 +58,7 @@ class Companion:
         self.car = CarSim()      # later: the OBD dongle, with the same `state` and tick()
         self.motion = Motion()   # Modulino Movement on the board, or the simulator's shake
         self.geo = Geofences()
+        self.clips = ClipPlayer()  # videos and GIFs from clips.json, now and then
         self.animator = Animator(self.store.data["faces"], self.store.data["animations"], now)
         self.rules = None
         self._apply_config(now)
@@ -123,10 +127,13 @@ class Companion:
         if self._sensor_report is False and not self._missing_logged:
             self._missing_logged = True
             self.log("warn", "Modulino Movement: not found on the Qwiic connector; the sketch keeps looking", "sensor")
+        signals = self._signals(now)
+        # What the display shows, most important first: place picture, clip, face.
+        self.clips.update(signals, now, blocked=self.asleep or self.picture is not None)
         if self.asleep:
             return
         cfg = self.store.data
-        active = self.rules.update(self._signals(now), now)
+        active = self.rules.update(signals, now)
         self._log_rule_changes([rule.id for rule, _ in active])
         # Animations first: a mood change waits for an animation that shapes the eyes,
         # so e.g. "visor_down" brings the visor down itself. New events win over endings.
@@ -227,6 +234,7 @@ class Companion:
             "car": self._car_sent,
             "scenarios": list(SCENARIOS),
             "images": self.images.names(),
+            "clip_files": self.clip_files.names(),
             "log": list(self.recent_log),
         }, to=client)
 
@@ -247,7 +255,7 @@ class Companion:
         if not errors:
             self.log("info", f"{name}.json saved from the app", "config")
             self._config_changed(name, self._clock())
-            warnings = validate.cross_check(self.store.data, self.images.names())
+            warnings = validate.cross_check(self.store.data, self.images.names(), self.clip_files.names())
         self.send({"type": "config_result", "name": name, "ok": not errors,
                    "errors": errors, "warnings": warnings}, to=client)
 
@@ -258,6 +266,19 @@ class Companion:
         if error is None:
             self.log("info", f"picture {name} saved", "config")
             self.send({"type": "images", "names": self.images.names()})
+
+    def on_clip_put(self, msg, client):
+        name = msg.get("name")
+        done, error = self.clip_files.add_part(name, msg.get("part"), msg.get("parts"), msg.get("data"))
+        self.send({"type": "clip_result", "name": name, "ok": error is None, "done": done, "error": error},
+                  to=client)
+        if done and error is None:
+            self.log("info", f"clip {name} saved", "config")
+            self.send({"type": "clip_files", "names": self.clip_files.names()})
+
+    def on_clip_play(self, msg, client):
+        if not self.clips.play(msg.get("id"), self._clock()):
+            self.log("warn", f"clip_play: unknown clip {msg.get('id')!r}", "protocol")
 
     def on_play(self, msg, client):
         what = msg.get("name", msg.get("steps"))
@@ -301,6 +322,8 @@ class Companion:
         "config_get": on_config_get,
         "config_set": on_config_set,
         "image_put": on_image_put,
+        "clip_put": on_clip_put,
+        "clip_play": on_clip_play,
         "play": on_play,
         "location": on_location,
         "sim_car": on_sim_car,
@@ -326,6 +349,10 @@ class Companion:
             place = self.picture[0]
             scene = {"kind": "image", "image": place["image"], "caption": place.get("caption", ""),
                      "brightness": brightness}
+        elif self.clips.current:
+            clip = self.clips.current[0]
+            scene = {"kind": "clip", "file": clip["file"], "frame": self.clips.frame(now),
+                     "frames": clip["frames"], "brightness": brightness}
         else:
             scene = layout.eyes_scene(shape, settings, look, blink, brightness,
                                       self.store.data["faces"]["visor"], self.lift.value(now))
@@ -336,6 +363,7 @@ class Companion:
             self.send({"type": "scene", "scene": scene})
         status = {"mood": self.animator.base_mood, "animation": self.animator.playing,
                   "rules": self._active, "place": self.geo.current, "location": self.location,
+                  "clip": self.clips.current[0]["id"] if self.clips.current else None,
                   "asleep": self.asleep, "brightness": brightness}
         if status != self.status:
             self.status = status
@@ -360,7 +388,8 @@ class Companion:
         settings = cfg["settings"]
         self.animator.set_config(cfg["faces"], cfg["animations"], settings["mood_ms"], now)
         self.rules = Rules(cfg["rules"], settings["thresholds"], previous=self.rules)
-        for warning in validate.cross_check(cfg, self.images.names()):
+        self.clips.configure(cfg["clips"], settings["thresholds"], now)
+        for warning in validate.cross_check(cfg, self.images.names(), self.clip_files.names()):
             self.log("warn", warning, "config")
 
     def _config_msg(self, name):

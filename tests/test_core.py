@@ -22,6 +22,7 @@ class CompanionTest(unittest.TestCase):
         for name in NAMES:
             shutil.copy(ROOT / "config" / f"{name}.json", self.dir / "config")
         shutil.copytree(ROOT / "assets" / "images", self.dir / "images")
+        shutil.copytree(ROOT / "assets" / "clips", self.dir / "clips")
         self.sent = []
         self.now = 0.0
         self.brain = Companion(self.dir / "config", lambda msg, to: self.sent.append((msg, to)),
@@ -61,6 +62,7 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(to, "tab1")
         self.assertEqual(set(state["config"]), set(NAMES))
         self.assertEqual(state["images"], ["geisler.png", "schlern.png"])
+        self.assertEqual(state["clip_files"], ["wheel.png"])
         self.assertIn("launch", state["scenarios"])
 
     def test_speed_picks_the_mood(self):
@@ -100,6 +102,22 @@ class CompanionTest(unittest.TestCase):
         self.assertLess(scene["displays"][0]["shapes"][0]["y"], 59)  # the eyes moved up
         self.run_for(6)
         self.assertNotIn("bubble", self.brain.scene)
+
+    def test_clips_come_now_and_then_but_place_pictures_come_first(self):
+        clips = json.loads((ROOT / "config" / "clips.json").read_text())
+        clips["clips"][0]["every_min"] = 0.5
+        self.send(type="config_set", name="clips", data=clips)
+        self.run_for(31)
+        self.assertEqual((self.brain.scene["kind"], self.brain.status["clip"]), ("clip", "wheel"))
+        frame = self.brain.scene["frame"]
+        self.run_for(0.2)
+        self.assertNotEqual(self.brain.scene["frame"], frame)  # it plays
+        self.send(type="location", **KASTELRUTH)
+        self.assertEqual(self.brain.scene["kind"], "image")  # the place picture comes first
+        self.run_for(9)
+        self.assertEqual(self.brain.scene["kind"], "eyes")  # the cut clip waits for its next turn
+        self.send(type="clip_play", id="wheel")  # "Play now"
+        self.assertEqual(self.brain.scene["kind"], "clip")
 
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)

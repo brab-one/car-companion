@@ -18,7 +18,7 @@ from . import defaults
 from .jsonfile import dumps_compact, write_text_atomic
 from .validate import check
 
-NAMES = ("faces", "animations", "rules", "places", "settings")
+NAMES = ("faces", "animations", "rules", "places", "clips", "settings")
 
 
 class ConfigStore:

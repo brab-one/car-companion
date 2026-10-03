@@ -12,6 +12,7 @@ from tests import ROOT
 
 CONFIG = ROOT / "config"
 IMAGES = sorted(p.name for p in (ROOT / "assets" / "images").glob("*.png"))
+CLIPS = sorted(p.name for p in (ROOT / "assets" / "clips").glob("*.png"))
 
 
 class ConfigStoreTest(unittest.TestCase):
@@ -42,7 +43,7 @@ class ConfigStoreTest(unittest.TestCase):
         for name in NAMES:
             data[name], errors = check(name, json.loads((CONFIG / f"{name}.json").read_text()))
             self.assertEqual(errors, [], name)
-        self.assertEqual(cross_check(data, IMAGES), [])
+        self.assertEqual(cross_check(data, IMAGES, CLIPS), [])
 
     def test_good_file_is_used_and_kept(self):
         s = self.store()

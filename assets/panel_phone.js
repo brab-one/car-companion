@@ -34,6 +34,7 @@ export class PhonePanel {
       status.rules.length ? `rules: ${status.rules.join(', ')}` : 'no rule active',
     ];
     if (status.animation) parts.push(`playing: ${status.animation}`);
+    if (status.clip) parts.push(`showing clip: ${status.clip}`);
     if (status.place) parts.push(`in: ${status.place}`);
     parts.push(`brightness ${Math.round(status.brightness * 100)} %`);
     this.statusLine.textContent = parts.join(' · ');

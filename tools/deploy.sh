@@ -3,9 +3,9 @@
 # page reachable on this PC. No Wi-Fi needed.
 #
 #   tools/deploy.sh            copy, restart, then open http://localhost:7001
-#   tools/deploy.sh --config   also overwrite the board's config files and pictures
+#   tools/deploy.sh --config   also overwrite the board's config files, pictures and clips
 #
-# Config files and place pictures are data: by default they are only copied
+# Config files, place pictures and clips are data: by default they are only copied
 # when the board does not have them yet, so changes made there (in the
 # Configure dialog, later from the phone) survive a deploy. With several adb
 # devices plugged in (e.g. your phone), pick the board:
@@ -22,7 +22,7 @@ overwrite=no
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 cp -r "$here/app.yaml" "$here/README.md" "$here/python" "$here/assets" "$here/sketch" "$stage/"
-rm -rf "$stage/assets/images"
+rm -rf "$stage/assets/images" "$stage/assets/clips"
 find "$stage" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # Stop the running app first: it watches its config files and would check new
@@ -51,6 +51,7 @@ push_data() {
 }
 push_data "$here/config" "$APP_DIR/config" "*.json"
 push_data "$here/assets/images" "$APP_DIR/assets/images" "*.png"
+push_data "$here/assets/clips" "$APP_DIR/assets/clips" "*.png"
 
 # Linux keeps new files in memory for up to 30 s before writing them to the
 # flash; unplugging the board in that time leaves them empty. Write them now.

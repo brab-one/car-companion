@@ -61,7 +61,13 @@ const handlers = {
   image_result(m) {
     configure.onReply(m);
   },
+  clip_result(m) {
+    configure.onReply(m);
+  },
   images() {
+    forgetPictures();
+  },
+  clip_files() {
     forgetPictures();
   },
   scene(m) {

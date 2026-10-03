@@ -49,38 +49,57 @@ const DRAW = {
     if (display?.visor) fillVisor(img, display.visor, scene.brightness ?? 1);
   },
   image(img, scene, i, redraw) {
-    const picture = loadPicture(scene.image, redraw);
+    const picture = loadPicture(`images/${encodeURIComponent(scene.image)}`, redraw);
     if (picture) img.data.set(toPanelImage(picture, scene.brightness ?? 1).data);
+  },
+  clip(img, scene, i, redraw) { // one frame of a tall picture, frame under frame
+    const sheet = loadPicture(`clips/${encodeURIComponent(scene.file)}`, redraw);
+    if (sheet) img.data.set(clipFrame(scene.file, sheet, scene.frame, scene.brightness ?? 1).data);
   },
   // "value" (a big number such as the oil temperature) comes later.
 };
 
 // ---- pictures ---------------------------------------------------------------
 
-const pictures = new Map(); // file name -> Image
+const pictures = new Map(); // path -> Image
+const clipFrames = new Map(); // "file:frame:brightness" -> ImageData, worked out once
 
-function loadPicture(name, onLoad) {
-  let picture = pictures.get(name);
+function loadPicture(path, onLoad) {
+  let picture = pictures.get(path);
   if (!picture) {
     picture = new Image();
-    picture.src = `images/${encodeURIComponent(name)}?v=${Date.now()}`; // pictures can be replaced
-    pictures.set(name, picture);
+    picture.src = `${path}?v=${Date.now()}`; // pictures can be replaced
+    pictures.set(path, picture);
   }
   if (!picture.complete) picture.addEventListener('load', onLoad, { once: true });
   return picture.complete && picture.naturalWidth ? picture : null;
 }
 
-// Call when pictures were added or replaced.
+function clipFrame(file, sheet, frame, brightness) {
+  const key = `${file}:${frame}:${brightness}`;
+  let img = clipFrames.get(key);
+  if (!img) {
+    if (clipFrames.size > 600) clipFrames.clear();
+    img = toPanelImage(sheet, brightness, frame * SIZE);
+    clipFrames.set(key, img);
+  }
+  return img;
+}
+
+// Call when pictures or clips were added or replaced.
 export function forgetPictures() {
   pictures.clear();
+  clipFrames.clear();
 }
 
 // A picture (Image or canvas) as the OLED shows it: 128×128, RGB565, dimmed.
-export function toPanelImage(picture, brightness = 1) {
+// With `top`, the 128×128 part of a taller picture that starts there (a clip frame).
+export function toPanelImage(picture, brightness = 1, top = null) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SIZE;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(picture, 0, 0, SIZE, SIZE);
+  if (top === null) ctx.drawImage(picture, 0, 0, SIZE, SIZE);
+  else ctx.drawImage(picture, 0, top, SIZE, SIZE, 0, 0, SIZE, SIZE);
   const img = ctx.getImageData(0, 0, SIZE, SIZE);
   const d = img.data;
   for (let p = 0; p < d.length; p += 4) {

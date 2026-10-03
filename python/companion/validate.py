@@ -22,6 +22,7 @@ MOOD_KEYS = (*EYE_KEYS, "gap", "blink_s", "visor", "left", "right")
 STEP_KEYS = ("mood", "look", "blink", "visor", "glint", "ms", "ease", "hold_ms", "repeat", "anim")
 RULE_KEYS = ("id", "note", "when", "mood", "idle", "play", "play_end", "say", "level", "cooldown_s", "hold_s")
 PLACE_KEYS = ("id", "name", "lat", "lon", "radius_m", "image", "caption", "say", "show_s", "cooldown_min")
+CLIP_KEYS = ("id", "name", "file", "frames", "fps", "show_s", "every_min", "enabled", "when")
 
 
 def check(name, data):
@@ -262,6 +263,44 @@ def _check_places(data, errors):
             _number(place["cooldown_min"], f"{path}.cooldown_min", errors, 0, 10080)
 
 
+# ---- clips.json -------------------------------------------------------------
+
+def _check_clips(data, errors):
+    if not _object(data, "", errors):
+        return
+    _known_keys(data, ("version", "clips"), "", errors)
+    _version(data, errors)
+    clips = data.get("clips")
+    if not isinstance(clips, list):
+        errors.append("clips: expected a list")
+        return
+    seen = set()
+    for i, clip in enumerate(clips):
+        path = _item_path("clips", i, clip, seen, errors)
+        if path is None:
+            continue
+        _known_keys(clip, CLIP_KEYS, path, errors)
+        if not (isinstance(clip.get("name"), str) and clip["name"].strip()):
+            errors.append(f"{path}.name: expected text, got {_show(clip.get('name'))}")
+        if not (isinstance(clip.get("file"), str) and IMAGE_NAME.fullmatch(clip["file"])):
+            errors.append(f'{path}.file: expected a file name like "wheel.png", got {_show(clip.get("file"))}')
+        _range(clip.get("frames"), f"{path}.frames", errors, 1, 300, whole=True)
+        _number(clip.get("fps"), f"{path}.fps", errors, 1, 30)
+        _number(clip.get("show_s"), f"{path}.show_s", errors, 1, 300)
+        _number(clip.get("every_min"), f"{path}.every_min", errors, 0.5, 1440)
+        if "enabled" in clip and not isinstance(clip["enabled"], bool):
+            errors.append(f"{path}.enabled: expected true or false, got {_show(clip['enabled'])}")
+        when = clip.get("when", [])
+        if not isinstance(when, list):
+            errors.append(f'{path}.when: expected a list of conditions like ["speed_kmh > 20"]')
+        else:
+            for j, condition in enumerate(when):
+                try:
+                    parse_condition(condition)
+                except ValueError as e:
+                    errors.append(f"{path}.when[{j}]: {e}")
+
+
 # ---- settings.json ----------------------------------------------------------
 
 def _check_settings(data, errors):
@@ -308,12 +347,12 @@ def _check_settings(data, errors):
 
 
 _CHECKS = {"faces": _check_faces, "animations": _check_animations, "rules": _check_rules,
-           "places": _check_places, "settings": _check_settings}
+           "places": _check_places, "clips": _check_clips, "settings": _check_settings}
 
 
 # ---- names used across files ------------------------------------------------
 
-def cross_check(data, image_names):
+def cross_check(data, image_names, clip_names=()):
     """Warnings for names that one config file uses but another does not have."""
     warnings = []
     moods = data["faces"]["moods"]
@@ -348,6 +387,15 @@ def cross_check(data, image_names):
         if "image" in place and place["image"] not in image_names:
             warnings.append(f'places.json: places.{place["id"]}.image: "{place["image"]}"'
                             " is not in assets/images")
+    for clip in data["clips"]["clips"]:
+        path = f"clips.json: clips.{clip['id']}"
+        if clip["file"] not in clip_names:
+            warnings.append(f'{path}.file: "{clip["file"]}" is not in assets/clips')
+        for condition in clip.get("when", []):
+            try:
+                parse_condition(condition, thresholds)
+            except ValueError as e:
+                warnings.append(f"{path}.when: {e}; the clip is skipped")
     return warnings
 
 
