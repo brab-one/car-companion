@@ -47,11 +47,11 @@ push_data() {
 push_data "$here/config" "$APP_DIR/config" "*.json"
 push_data "$here/assets/images" "$APP_DIR/assets/images" "*.png"
 
-echo "Restarting the app (the first start after a sketch change compiles it, about a minute) ..."
+echo "Restarting the app (it compiles and flashes the sketch each time, about a minute) ..."
 # adb sets TMPDIR to Android's /data/local/tmp, which the board does not have.
 adb shell TMPDIR=/tmp arduino-app-cli app restart "$APP_DIR"
 adb forward tcp:$PORT tcp:7000 >/dev/null
 
 echo
 echo "Running on the board. Open http://localhost:$PORT"
-echo "Its log: adb shell arduino-app-cli app logs $APP_DIR"
+echo "Its log: adb shell TMPDIR=/tmp arduino-app-cli app logs $APP_DIR"

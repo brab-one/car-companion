@@ -64,7 +64,7 @@ tools/deploy.sh
 ```
 
 It copies the app over the cable (adb, no Wi-Fi or password needed), restarts
-it on the board (compiling the sketch when it changed, about a minute) and
+it on the board (compiling and flashing the sketch, about a minute) and
 makes the board's page available at http://localhost:7001. When the board is
 on your Wi-Fi, the page is also at `http://<board's IP>:7000`, for example on
 your phone. Config files and pictures already on the board are kept; add
