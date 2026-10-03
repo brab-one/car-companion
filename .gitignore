@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.tmp
+# Last good copies of the config files, written by the companion at runtime.
+config/.good/
+.claude/launch.json

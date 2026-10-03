@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "displays": 1,
+  "fps": 30,
+  "brightness": {"mode": "manual", "manual": 100},
+  "layout": {"look_x_px": 18, "look_y_px": 12, "dual_scale": 2.0}
+}

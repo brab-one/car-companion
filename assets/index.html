@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Car Companion simulator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Car Companion</h1>
+      <span id="connection" class="pill">connecting…</span>
+    </header>
+
+    <main>
+      <section class="card" id="display-card">
+        <h2>Display</h2>
+        <div id="displays" class="displays"></div>
+        <p class="hint">128 × 128 pixels, RGB565 colours, shown 4× larger.</p>
+      </section>
+
+      <section class="card" id="phone">
+        <h2>Phone app</h2>
+        <div id="config-errors" class="errors"></div>
+        <h3>Mood</h3>
+        <div id="moods" class="buttons"></div>
+        <p id="status-line" class="hint"></p>
+      </section>
+
+      <section class="card" id="log-card">
+        <h2>Log</h2>
+        <ol id="log"></ol>
+      </section>
+    </main>
+
+    <!-- On the board these come from Arduino's WebUI (socket.io).
+         tools/run_pc.py replaces them with a stand-in that has the same API. -->
+    <script src="libs/socket.io.min.js"></script>
+    <script src="libs/arduino.js"></script>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

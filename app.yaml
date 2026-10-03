@@ -1,0 +1,6 @@
+name: Car Companion
+icon: 🚗
+description: Dashboard companion with an animated face, driving reactions and place pictures.
+
+bricks:
+  - arduino:web_ui
