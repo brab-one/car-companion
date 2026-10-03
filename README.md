@@ -57,7 +57,7 @@ With `--lan` you can also open it on your phone (same Wi-Fi, your PC's address).
 
 The page:
 
-- **Display**: the OLED, pixel for pixel, with what he says underneath.
+- **Display**: the OLED, pixel for pixel, speech bubble included.
 - **Phone app**: what he is doing and why (mood, active rules), buttons to preview moods and
   animations, and "Edit faces…".
 - **Car**: ignition, speed and the other values, scenarios, and "Shake the board" in place of the motion sensor.
