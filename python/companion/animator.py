@@ -1,7 +1,7 @@
 """Animation player: moves the eyes through animations from animations.json.
 
 Three channels change independently, each smoothly from where it is now:
-  shape  the eye parameters of a mood (sizes, colour, slant, cut)
+  shape  the eye parameters of a mood (sizes, colour, slant, cut, visor)
   look   where the eyes look: x and y from -1 to 1
   blink  0 is open, 1 is closed
 
@@ -228,7 +228,7 @@ class Animator:
 
     def _shape_of(self, mood):
         pair = faces.resolve(self.faces, mood)
-        return {"left": pair["left"], "right": pair["right"], "gap": pair["gap"]}
+        return {"left": pair["left"], "right": pair["right"], "gap": pair["gap"], "visor": pair["visor"]}
 
     def _look_target(self, spec):
         if spec == "random":

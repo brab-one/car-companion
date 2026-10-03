@@ -99,9 +99,13 @@ class ConfigStoreTest(unittest.TestCase):
         faces["moods"]["happy"].update(heigth=30, color="green", w="wide")
         faces["default"] = "grumpy"
         faces["moods"]["Very Sad"] = {}
+        faces["moods"]["happy"]["visor"] = 2
+        faces["visor"] = {"alpha": "dark"}
         _, errors = check("faces", faces)
         text = "\n".join(errors)
         self.assertIn("faces.json: moods.Very Sad: use small letters, digits, - and _ in mood names", text)
+        self.assertIn("faces.json: moods.happy.visor: 2 is outside the allowed range 0 to 1", text)
+        self.assertIn('faces.json: visor.alpha: expected a number, got "dark"', text)
         self.assertIn("faces.json: moods.happy.heigth: unknown field", text)
         self.assertIn('faces.json: moods.happy.color: expected a colour like "#00E5FF", got "green"', text)
         self.assertIn('faces.json: moods.happy.w: expected a number, got "wide"', text)

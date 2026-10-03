@@ -39,6 +39,14 @@ SETTINGS = {
     },
 }
 
+VISOR = {  # how the visor looks; moods say how far it is down ("visor": 0 up .. 1 down)
+    "y": 62,              # centre when fully down
+    "w": 124, "h": 44, "r": 12,
+    "color": "#0B1E3A",   # the tint
+    "alpha": 0.82,        # 0 clear .. 1 the eyes cannot be seen behind it
+    "shine": "#9CC8FF",   # the reflection stripes
+}
+
 FACES = {
     "version": 1,
     "default": "neutral",

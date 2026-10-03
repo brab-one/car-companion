@@ -43,7 +43,9 @@ export class CanvasRenderer {
 const DRAW = {
   off() {}, // everything stays black
   eyes(img, scene, i) {
-    for (const eye of scene.displays[i]?.shapes ?? []) fillEye(img, eye, scene.brightness ?? 1);
+    const display = scene.displays[i];
+    for (const eye of display?.shapes ?? []) fillEye(img, eye, scene.brightness ?? 1);
+    if (display?.visor) fillVisor(img, display.visor, scene.brightness ?? 1);
   },
   image(img, scene, i, redraw) {
     const picture = loadPicture(scene.image, redraw);
@@ -110,6 +112,28 @@ function fillEye(img, eye, brightness) {
       img.data[p] = r;
       img.data[p + 1] = g;
       img.data[p + 2] = b;
+    }
+  }
+}
+
+// The visor: a rounded band laid over the eyes, tinted by `alpha` (0 clear,
+// 1 solid), with two "/" reflection stripes. The OLED sketch must draw it
+// the same way (PROTOCOL.md, "Scenes").
+function fillVisor(img, visor, brightness) {
+  const tint = panelColor(parseInt(visor.color.slice(1), 16), brightness);
+  const shine = panelColor(parseInt(visor.shine.slice(1), 16), brightness);
+  const band = { ...visor, slant: 0, cut: 0 };
+  const left = visor.x - visor.w / 2;
+  const top = visor.y - visor.h / 2;
+  const stripe = 0.2 * visor.w; // where the first stripe starts along the diagonal
+  for (let y = Math.max(0, Math.floor(top)); y < Math.min(SIZE, Math.ceil(top + visor.h)); y++) {
+    for (let x = Math.max(0, Math.floor(left)); x < Math.min(SIZE, Math.ceil(left + visor.w)); x++) {
+      if (!insideEye(x + 0.5, y + 0.5, band)) continue;
+      const s = x + 0.5 - left + (y + 0.5 - top); // distance along the "/" diagonal
+      const shiny = (s >= stripe && s < stripe + 5) || (s >= stripe + 9 && s < stripe + 11);
+      const [color, alpha] = shiny ? [shine, 0.9] : [tint, visor.alpha];
+      const p = (y * SIZE + x) * 4;
+      for (let c = 0; c < 3; c++) img.data[p + c] = Math.round(color[c] * alpha + img.data[p + c] * (1 - alpha));
     }
   }
 }

@@ -27,6 +27,11 @@ class FacesTest(unittest.TestCase):
     def test_unknown_mood_gives_default(self):
         self.assertEqual(faces.resolve(FACES, "no_such_mood"), faces.resolve(FACES, "neutral"))
 
+    def test_visor_is_up_unless_a_mood_puts_it_down(self):
+        self.assertEqual(faces.resolve(FACES, "happy")["visor"], 0)
+        racing = {**FACES, "moods": {**FACES["moods"], "racing": {"visor": 1}}}
+        self.assertEqual(faces.resolve(racing, "racing")["visor"], 1)
+
     def test_blink_can_be_switched_off(self):
         self.assertIsNone(faces.resolve(FACES, "sleepy")["blink_s"])
         self.assertEqual(faces.resolve(FACES, "happy")["blink_s"], [3, 7])

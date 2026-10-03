@@ -75,6 +75,7 @@ export class FacesEditor {
     const pair = resolveMood(this.faces, this.mood);
     const eye = this.side === 'right' ? pair.right : pair.left;
     this.resets = {};
+    this.visorShown = false;
     const rows = SLIDERS.map(([key, label, min, max]) => this.#slider(key, label, min, max, eye[key]));
     const color = el('input', { type: 'color', value: eye.color.toLowerCase() });
     color.addEventListener('input', () => this.#set('color', color.value.toUpperCase()));
@@ -82,19 +83,58 @@ export class FacesEditor {
     if (this.side === 'both') {
       rows.push(this.#slider('gap', 'Space between the eyes', 0, 60, pair.gap));
       rows.push(this.#blinkRow(pair.blink_s));
+      rows.push(this.#slider('visor', 'Visor down (%)', 0, 100, Math.round(pair.visor * 100), (v) => v / 100));
+      if (pair.visor > 0) rows.push(...this.#visorLookRows());
     }
     this.controls.replaceChildren(...rows);
     this.#drawPreview();
   }
 
-  #slider(key, label, min, max, value) {
+  #slider(key, label, min, max, value, toValue = (v) => v) {
     const input = el('input', { type: 'range', min, max, step: 1, value });
     const out = el('output', { textContent: value });
     input.addEventListener('input', () => {
       out.textContent = input.value;
-      this.#set(key, Number(input.value));
+      this.#set(key, toValue(Number(input.value)));
     });
+    if (key === 'visor') { // show or hide the visor look once you let go
+      input.addEventListener('change', () => (Number(input.value) > 0) !== this.visorShown && this.#render());
+    }
     return this.#row(key, label, input, out);
+  }
+
+  // How the visor looks; the same for every mood that wears it.
+  #visorLookRows() {
+    this.visorShown = true;
+    const look = this.faces.visor;
+    const set = (key, value) => {
+      look[key] = value;
+      this.dirty = true;
+      this.#drawPreview();
+    };
+    const slider = (key, label, min, max, toShown = (v) => v, toValue = (v) => v) => {
+      const input = el('input', { type: 'range', min, max, step: 1, value: toShown(look[key]) });
+      const out = el('output', { textContent: input.value });
+      input.addEventListener('input', () => {
+        out.textContent = input.value;
+        set(key, toValue(Number(input.value)));
+      });
+      return el('div', { className: 'face-row' }, el('span', { textContent: label }), el('div', {}, input, out));
+    };
+    const color = (key, label) => {
+      const input = el('input', { type: 'color', value: look[key].toLowerCase() });
+      input.addEventListener('input', () => set(key, input.value.toUpperCase()));
+      return el('div', { className: 'face-row' }, el('span', { textContent: label }), el('div', {}, input));
+    };
+    return [
+      el('h3', { textContent: 'Visor look (the same for every mood)' }),
+      color('color', 'Visor tint'),
+      color('shine', 'Reflection'),
+      slider('alpha', 'Darkness (%)', 0, 100, (v) => Math.round(v * 100), (v) => v / 100),
+      slider('h', 'Visor height', 8, 80),
+      slider('y', 'Visor position', 20, 108),
+      slider('r', 'Visor roundness', 0, 30),
+    ];
   }
 
   #blinkRow(blinkS) {
@@ -123,7 +163,9 @@ export class FacesEditor {
   }
 
   #drawPreview() {
-    if (this.faces) this.preview.draw(eyesScene(resolveMood(this.faces, this.mood), this.ctx.app.config.settings));
+    if (this.faces) {
+      this.preview.draw(eyesScene(resolveMood(this.faces, this.mood), this.ctx.app.config.settings, this.faces.visor));
+    }
   }
 
   // ---- editing ----------------------------------------------------------------------
@@ -199,11 +241,26 @@ export function resolveMood(faces, name) {
   const eye = (side) => Object.fromEntries(EYE_KEYS.map((key) =>
     [key, [mood[side], mood, base[side], base].find((layer) => layer && key in layer)[key]]));
   return { left: eye('left'), right: eye('right'), gap: mood.gap ?? base.gap,
-    blink_s: 'blink_s' in mood ? mood.blink_s : base.blink_s };
+    visor: mood.visor ?? base.visor ?? 0, blink_s: 'blink_s' in mood ? mood.blink_s : base.blink_s };
 }
 
 // The same as python/companion/layout.py, looking straight ahead with open eyes.
-function eyesScene(pair, settings) {
+function eyesScene(pair, settings, visorLook) {
+  const scene = eyesOnly(pair, settings);
+  if (visorLook && pair.visor > 0) {
+    const scale = settings.displays === 2 ? settings.layout.dual_scale : 1;
+    const h = Math.round(visorLook.h * scale);
+    const w = Math.min(128, Math.round(visorLook.w * scale));
+    const lowest = 64 + (visorLook.y - 64) * scale;
+    const highest = -h / 2 - 1;
+    const visor = { ...visorLook, x: 64, y: Math.round(highest + (lowest - highest) * pair.visor), w, h,
+      r: Math.min(Math.round(visorLook.r * scale), Math.floor(w / 2), Math.floor(h / 2)) };
+    for (const display of scene.displays) display.visor = visor;
+  }
+  return scene;
+}
+
+function eyesOnly(pair, settings) {
   const shape = (eye, x, y, inner, scale = 1) => {
     const w = Math.round(eye.w * scale);
     const h = Math.max(2, Math.round(eye.h * scale));

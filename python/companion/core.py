@@ -310,7 +310,7 @@ class Companion:
             scene = {"kind": "image", "image": place["image"], "caption": place.get("caption", ""),
                      "brightness": brightness}
         else:
-            scene = layout.eyes_scene(shape, settings, look, blink, brightness)
+            scene = layout.eyes_scene(shape, settings, look, blink, brightness, self.store.data["faces"]["visor"])
         if scene != self.scene:
             self.scene = scene
             self.send({"type": "scene", "scene": scene})

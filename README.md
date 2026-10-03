@@ -23,7 +23,7 @@ phone app, the car (OBD dongle) and the phone's GPS.
 |---|---|
 | Cold oil (below 80 °C) at high revs (above 4500 rpm) | worried, nervous glances, "Easy, the oil is still cold." |
 | Coolant from 105 °C | worried, nervous glances, a warning |
-| Speed from 100 km/h | angry |
+| Speed from 90 km/h | racing: his visor slides down over his eyes, and back up when he slows down |
 | Board shaken (Modulino Movement from 0.35 g) | angry, "Hey, stop shaking me!" |
 | Standing still or crawling (below 5 km/h) | happy, looking around: quick glances to random spots and corners, then back to the middle |
 | Driving with cold oil (below 50 °C) | worried |
@@ -58,9 +58,10 @@ The page:
 - **Log**: rules turning on and off, places, warnings, and his lines.
 - **Configure** (top right):
   - **Faces**: pick a mood and shape it with sliders (width, height, roundness, slant, smile cut,
-    colour, spacing, blinking) while the preview draws it exactly like the display. Change both
-    eyes or one; ↺ goes back to the default mood's value. Add and delete moods.
-  - **Car data**: a table of ranges, e.g. "Speed from 100 km/h → angry" or "Oil to 50 °C →
+    colour, spacing, blinking, visor) while the preview draws it exactly like the display. Change
+    both eyes or one; ↺ goes back to the default mood's value. Add and delete moods. With the
+    visor down, the visor's own look (tint, reflection, darkness, size) can be changed too.
+  - **Car data**: a table of ranges, e.g. "Speed from 90 km/h → racing" or "Oil to 50 °C →
     worried", with what the eyes do (as usual, look around, nervous) and an optional line. The
     highest matching row wins; ↑ ↓ change the order. Active rows are marked while you test.
   - **Places**: add and edit places with their pictures.
@@ -160,6 +161,12 @@ the default mood (`neutral`) and only lists what changes:
 | `gap` | Space between the eyes. |
 | `blink_s` | `[min, max]` seconds between blinks, or `null` for no blinking. |
 | `left`, `right` | Change one eye only, e.g. `"left": {"h": 18}`. |
+| `visor` | How far the visor is down: 0 up (default) to 1 down. It slides when the mood changes. |
+
+How the visor looks is set once, in `"visor"` at the end of faces.json:
+`y` (its centre when down), `w`, `h`, `r`, `color` (the tint), `alpha` (0 clear
+to 1 dark) and `shine` (the reflection stripes). Its eyes stay faintly visible
+behind it and keep moving; the visor itself stays put.
 
 ### Add an animation (animations.json)
 

@@ -90,6 +90,25 @@ Drawing rule (the sketch must draw exactly like `insideEye()` in
 4. outside the cut ellipse, centred at `(x, y + h - cut)` with radii `0.75 * w` and `0.5 * h`
    (its top touches the eye `cut` pixels above the bottom edge).
 
+A display can also have a `visor`, drawn over its eyes (only while it is
+down, at least partly):
+
+```json
+{"shapes": [...], "visor": {"x": 64, "y": 62, "w": 124, "h": 44, "r": 12,
+                            "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF"}}
+```
+
+`x`, `y`, `w`, `h`, `r` place a rounded rectangle as for an eye (no slant, no
+cut). While it slides down, `y` goes from just above the display to its
+place. Drawing rule (`fillVisor()` in `render_canvas.js`): for each pixel of
+the rectangle, with `left = x - w/2`, `top = y - h/2` and
+`s = (px + 0.5 - left) + (py + 0.5 - top)` (the distance along a "/" diagonal):
+
+- reflection where `0.2*w <= s < 0.2*w + 5` or `0.2*w + 9 <= s < 0.2*w + 11`:
+  `shine` mixed over the pixel at 0.9;
+- everywhere else: `color` mixed over the pixel at `alpha`
+  (`new = color * alpha + old * (1 - alpha)`, per colour channel).
+
 Other kinds:
 
 - `{"kind": "image", "image": "schlern.png", "caption": "Schlern", "brightness": 1.0}`:

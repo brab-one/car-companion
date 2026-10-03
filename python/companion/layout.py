@@ -8,10 +8,11 @@ SIZE = 128  # display width and height in pixels
 MIN_H = 2   # a closed eye is a thin line, not nothing
 
 
-def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0):
+def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0, visor=None):
     """pair: eye parameters from faces.resolve() (possibly mid-animation).
     look: x and y from -1 to 1; positive is right / down, as seen by the viewer.
-    blink: 0 is open, 1 is closed. brightness: 0 to 1."""
+    blink: 0 is open, 1 is closed. brightness: 0 to 1.
+    visor: how the visor looks (faces.json "visor"); pair["visor"] says how far it is down."""
     lay = settings["layout"]
     dx = look[0] * lay["look_x_px"]
     dy = look[1] * lay["look_y_px"]
@@ -31,10 +32,32 @@ def eyes_scene(pair, settings, look=(0.0, 0.0), blink=0.0, brightness=1.0):
             _shape(left, SIZE / 2 - half_gap - left["w"] / 2 + dx, y, "right", blink),
             _shape(right, SIZE / 2 + half_gap + right["w"] / 2 + dx, y, "left", blink),
         ]]
+    scale = lay["dual_scale"] if settings["displays"] == 2 else 1.0
+    down = pair.get("visor", 0)
     return {
         "kind": "eyes",
         "brightness": brightness,
-        "displays": [{"shapes": shapes} for shapes in displays],
+        "displays": [{"shapes": shapes, **({"visor": _visor(visor, down, scale)} if visor and down > 0 else {})}
+                     for shapes in displays],
+    }
+
+
+def _visor(look, down, scale=1.0):
+    """The visor slides down from above the top edge; down = 1 is all the way down.
+    It belongs to the head, so it does not follow the eyes' look."""
+    h = round(look["h"] * scale)
+    w = min(SIZE, round(look["w"] * scale))
+    lowest = SIZE / 2 + (look["y"] - SIZE / 2) * scale
+    highest = -h / 2 - 1  # just out of sight
+    return {
+        "x": SIZE // 2,
+        "y": round(highest + (lowest - highest) * down),
+        "w": w,
+        "h": h,
+        "r": min(round(look["r"] * scale), w // 2, h // 2),
+        "color": look["color"],
+        "alpha": look["alpha"],
+        "shine": look["shine"],
     }
 
 

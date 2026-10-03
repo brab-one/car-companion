@@ -2,6 +2,7 @@ import copy
 import unittest
 
 from companion import defaults, faces, layout
+from companion.defaults import VISOR
 from tests.test_faces import FACES
 
 NEUTRAL = faces.resolve(FACES, "neutral")
@@ -47,6 +48,19 @@ class LayoutTest(unittest.TestCase):
             (eye,) = shapes(scene, i)
             self.assertEqual((eye["x"], eye["y"], eye["w"]), (64, 64, 72))
         self.assertEqual(scene["brightness"], 0.5)
+
+    def test_visor_slides_down_from_above(self):
+        pair = dict(NEUTRAL)
+        self.assertNotIn("visor", layout.eyes_scene(pair, self.settings, visor=VISOR)["displays"][0])
+        heights = []
+        for down in (0.1, 0.5, 1.0):
+            pair["visor"] = down
+            visor = layout.eyes_scene(pair, self.settings, look=(1, 1), visor=VISOR)["displays"][0]["visor"]
+            heights.append(visor["y"])
+            self.assertEqual((visor["x"], visor["w"], visor["h"]), (64, VISOR["w"], VISOR["h"]))  # does not follow the look
+        self.assertEqual(heights, sorted(heights))
+        self.assertEqual(heights[-1], VISOR["y"])
+        self.assertLess(heights[0] + VISOR["h"] / 2, 10)  # mostly above the display
 
 
 if __name__ == "__main__":

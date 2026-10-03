@@ -64,10 +64,19 @@ class CompanionTest(unittest.TestCase):
         self.assertIn("launch", state["scenarios"])
 
     def test_speed_picks_the_mood(self):
-        for speed, mood in [(0, "happy"), (50, "neutral"), (150, "angry"), (3, "happy")]:
+        for speed, mood in [(0, "happy"), (50, "neutral"), (95, "racing"), (3, "happy")]:
             self.send(type="sim_car", speed_kmh=speed)
             self.run_for(3)  # "fast" holds for 2 s
             self.assertEqual(self.brain.status["mood"], mood, f"at {speed} km/h")
+
+    def test_visor_comes_down_from_90_kmh(self):
+        self.send(type="sim_car", speed_kmh=95)
+        self.run_for(3)  # after waking up (moods wait for the wake_up animation)
+        display = self.brain.scene["displays"][0]
+        self.assertEqual((self.brain.status["mood"], display["visor"]["y"]), ("racing", 62))
+        self.send(type="sim_car", speed_kmh=60)
+        self.run_for(3)  # "fast" holds 2 s, then the visor goes up again
+        self.assertNotIn("visor", self.brain.scene["displays"][0])
 
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)

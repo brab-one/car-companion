@@ -18,7 +18,7 @@ HEX_COLOR = re.compile(r"#[0-9A-Fa-f]{6}")
 ID = re.compile(r"[a-z0-9_-]{1,40}")
 IMAGE_NAME = re.compile(r"[a-z0-9_-]{1,40}\.png")
 EYE_RANGES = {"w": (1, 128), "h": (1, 128), "r": (0, 64), "slant": (-64, 64), "cut": (0, 128)}
-MOOD_KEYS = (*EYE_KEYS, "gap", "blink_s", "left", "right")
+MOOD_KEYS = (*EYE_KEYS, "gap", "blink_s", "visor", "left", "right")
 STEP_KEYS = ("mood", "look", "blink", "ms", "ease", "hold_ms", "repeat", "anim")
 RULE_KEYS = ("id", "note", "when", "mood", "idle", "play", "say", "level", "cooldown_s", "hold_s")
 PLACE_KEYS = ("id", "name", "lat", "lon", "radius_m", "image", "caption", "say", "show_s", "cooldown_min")
@@ -29,6 +29,8 @@ def check(name, data):
     defaults first, so a settings file only needs the values it changes."""
     if name == "settings" and isinstance(data, dict):
         data = merged(defaults.SETTINGS, data)
+    if name == "faces" and isinstance(data, dict) and isinstance(data.get("visor", {}), dict):
+        data = {**data, "visor": merged(defaults.VISOR, data.get("visor", {}))}
     errors = []
     _CHECKS[name](data, errors)
     return data, [f"{name}.json: {e}" for e in errors]
@@ -56,8 +58,9 @@ def merged(base, override):
 def _check_faces(data, errors):
     if not _object(data, "", errors):
         return
-    _known_keys(data, ("version", "default", "moods"), "", errors)
+    _known_keys(data, ("version", "default", "moods", "visor"), "", errors)
     _version(data, errors)
+    _visor(data.get("visor", defaults.VISOR), errors)
     moods = data.get("moods")
     if not isinstance(moods, dict) or not moods:
         errors.append("moods: expected an object with at least one mood")
@@ -72,6 +75,8 @@ def _check_faces(data, errors):
         _eye(mood, path, errors)
         if "gap" in mood:
             _number(mood["gap"], f"{path}.gap", errors, 0, 128)
+        if "visor" in mood:
+            _number(mood["visor"], f"{path}.visor", errors, 0, 1)
         if "blink_s" in mood and mood["blink_s"] is not None:  # null: no blinking
             _range(mood["blink_s"], f"{path}.blink_s", errors, 0.1, 600)
         for side in ("left", "right"):
@@ -86,6 +91,17 @@ def _check_faces(data, errors):
         if missing:
             errors.append(f"moods.{default}: the default mood must set {', '.join(missing)}"
                           " (the other moods inherit from it)")
+
+
+def _visor(visor, errors):
+    if not _object(visor, "visor", errors):
+        return
+    _known_keys(visor, defaults.VISOR, "visor", errors)
+    for key, (lo, hi) in {"y": (0, 128), "w": (1, 128), "h": (1, 128), "r": (0, 64), "alpha": (0, 1)}.items():
+        _number(visor[key], f"visor.{key}", errors, lo, hi)
+    for key in ("color", "shine"):
+        if not (isinstance(visor[key], str) and HEX_COLOR.fullmatch(visor[key])):
+            errors.append(f'visor.{key}: expected a colour like "#0B1E3A", got {_show(visor[key])}')
 
 
 def _eye(eye, path, errors):
