@@ -3,6 +3,7 @@
 //   Car data  which face goes with which range of a car value (config_ranges.js)
 //   Places    places with their pictures (config_places.js)
 //   Clips     videos and GIFs shown now and then (config_clips.js)
+//   Board     what the board is doing, and its settings (config_board.js)
 //   Files     any config file as JSON (below)
 // The companion checks everything before it saves (config_set, image_put)
 // and answers with the problems it found.
@@ -11,9 +12,10 @@ import { FacesEditor } from './config_faces.js';
 import { RangesEditor } from './config_ranges.js';
 import { PlacesEditor } from './config_places.js';
 import { ClipsEditor } from './config_clips.js';
+import { BoardEditor } from './config_board.js';
 import { compactJson, saveConfig, showMessage } from './config_common.js';
 
-const FILES = ['faces', 'animations', 'rules', 'places', 'settings'];
+const FILES = ['faces', 'animations', 'rules', 'places', 'clips', 'settings', 'board'];
 const REPLY_TIMEOUT_MS = 10000;
 
 export class ConfigPanel {
@@ -30,8 +32,10 @@ export class ConfigPanel {
       ranges: new RangesEditor(pane('ranges'), ctx),
       places: new PlacesEditor(pane('places'), ctx),
       clips: new ClipsEditor(pane('clips'), ctx),
+      board: new BoardEditor(pane('board'), ctx),
     };
     dialog.querySelector('#close-config').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => this.#tellShown(null));
     for (const tab of dialog.querySelectorAll('[data-tab]')) {
       tab.addEventListener('click', () => this.#showTab(tab.dataset.tab));
     }
@@ -64,7 +68,7 @@ export class ConfigPanel {
     this.editors.ranges.onStatus(status);
   }
 
-  // Replies the companion sends to one client: config_result, image_result, clip_result.
+  // Replies the companion sends to one client: config_result, image_result, clip_result, board.
   onReply(msg) {
     const key = `${msg.type}:${msg.name}`;
     this.waiting.get(key)?.(msg);
@@ -84,6 +88,12 @@ export class ConfigPanel {
     this.tab = name;
     for (const tab of this.dialog.querySelectorAll('[data-tab]')) tab.classList.toggle('active', tab.dataset.tab === name);
     for (const pane of this.dialog.querySelectorAll('.tab-pane')) pane.hidden = pane.id !== `tab-${name}`;
+    this.#tellShown(name);
+  }
+
+  // Editors that do something while they show (the Board tab asks the board) hear about it.
+  #tellShown(name) {
+    for (const [key, editor] of Object.entries(this.editors)) editor.shown?.(key === name);
   }
 
   // ---- Files ------------------------------------------------------------------------

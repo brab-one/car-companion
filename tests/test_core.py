@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import os
 import struct
@@ -240,6 +241,22 @@ class CompanionTest(unittest.TestCase):
         self.send(type="config_set", name="settings", data=settings)
         self.send(type="ask", text="Welches Auto ist das?")
         self.assertEqual(self.answer()["text"], "Wir sitzen in einem Subaru BRZ.")
+
+    def test_the_time_in_the_time_zone_from_the_settings(self):
+        self.brain._wall = lambda: datetime.datetime(2026, 10, 4, 12, 0, tzinfo=datetime.timezone.utc).timestamp()
+        for zone, said in [("Europe/Rome", "It's 14:00."), ("America/New_York", "It's 8:00.")]:
+            settings = json.loads((CONFIG / "settings.json").read_text())
+            settings["timezone"] = zone
+            self.send(type="config_set", name="settings", data=settings)
+            self.send(type="ask", text="What time is it?")
+            self.assertEqual(self.answer()["text"], said)
+            self.run_for(10)
+
+    def test_the_board_tab_gets_what_the_board_is_doing(self):
+        self.send(type="board_info")
+        ((reply, to),) = self.sent_of("board")
+        self.assertEqual((to, reply["on_board"]), ("tab1", False))
+        self.assertIn("memory_mb", reply)
 
     def test_his_own_lines_wait_while_he_answers(self):
         self.send(type="sim_car", speed_kmh=50)

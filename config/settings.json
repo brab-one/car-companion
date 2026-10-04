@@ -12,6 +12,6 @@
   "sleep_after_off_s": 20,
   "place_exit_margin": 0.2,
   "assistant": {"car": "Subaru BRZ"},
-  "thresholds": {"fast_kmh": 100, "slow_kmh": 5, "shake_g": 0.35, "oil_warm_c": 80, "coolant_hot_c": 105,
-                 "redline_rpm": 7500}
+  "thresholds": {"fast_kmh": 100, "slow_kmh": 5, "shake_g": 0.35, "oil_warm_c": 80, "coolant_hot_c": 105, "redline_rpm": 7500},
+  "timezone": "Europe/Rome"
 }

@@ -8,6 +8,7 @@ To validate a new field, add a line to the matching _check_* function."""
 
 import json
 import re
+import zoneinfo
 
 from . import defaults
 from .animator import EASES
@@ -352,6 +353,7 @@ def _check_settings(data, errors):
     _number(data["say_gap_s"], "say_gap_s", errors, 0, 3600)
     _number(data["sleep_after_off_s"], "sleep_after_off_s", errors, 0, 3600)
     _number(data["place_exit_margin"], "place_exit_margin", errors, 0, 2)
+    _timezone(data["timezone"], errors)
     _assistant(data["assistant"], spec["assistant"], errors)
     if _object(data["thresholds"], "thresholds", errors):
         for key, value in data["thresholds"].items():  # any names: rules use them as $name
@@ -380,8 +382,35 @@ def _assistant(a, spec, errors):
     _number(a["llm_timeout_s"], "assistant.llm_timeout_s", errors, 5, 600)
 
 
+def _timezone(tz, errors):
+    if tz == "":
+        return
+    try:
+        zoneinfo.ZoneInfo(tz)
+    except (ValueError, TypeError, zoneinfo.ZoneInfoNotFoundError):
+        errors.append(f'timezone: expected a time zone like "Europe/Rome", or "", got {_show(tz)}')
+
+
+# ---- board.json -------------------------------------------------------------
+
+def _check_board(data, errors):
+    """The board helper checks the values against what the hardware offers too."""
+    if not _object(data, "", errors):
+        return
+    _known_keys(data, defaults.BOARD, "", errors)
+    _version(data, errors)
+    if data.get("cpu_max_mhz") is not None:
+        _number(data["cpu_max_mhz"], "cpu_max_mhz", errors, 100, 5000)
+    gov = data.get("cpu_governor")
+    if gov is not None and not (isinstance(gov, str) and re.fullmatch(r"[a-z_]{1,30}", gov)):
+        errors.append(f'cpu_governor: expected a name like "schedutil", or null, got {_show(gov)}')
+    if data.get("wifi_powersave") is not None and not isinstance(data["wifi_powersave"], bool):
+        errors.append(f"wifi_powersave: expected true, false or null, got {_show(data['wifi_powersave'])}")
+
+
 _CHECKS = {"faces": _check_faces, "animations": _check_animations, "rules": _check_rules,
-           "places": _check_places, "clips": _check_clips, "settings": _check_settings}
+           "places": _check_places, "clips": _check_clips, "settings": _check_settings,
+           "board": _check_board}
 
 
 # ---- names used across files ------------------------------------------------

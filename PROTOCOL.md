@@ -28,11 +28,13 @@ Rules:
 | `hello` | `client` (`"sim"`, `"android"`), `version` | First message after connecting. Answer: `state`, to this client. |
 | `config_get` | `name` | Asks for one config file. Answer: `config`, to this client. |
 | `config_set` | `name`, `data` | Replaces a whole config file. It is checked, saved atomically and applied at once. Answer: `config_result`, to this client; everyone gets the new `config`. |
+| `config_patch` | `name`, `data` | Like `config_set` for some fields only (nested objects are merged): the rest of the file stays as written, without the defaults filled in. Answer: `config_result`, to this client. |
 | `image_put` | `name` (e.g. `"kastelruth.png"`), `png_base64` | Stores a place picture: a 128 × 128 PNG, at most 300 kB. Answer: `image_result`, to this client; everyone gets `images`. |
 | `clip_put` | `name` (e.g. `"wheel.png"`), `part`, `parts`, `data` (base64) | Stores a clip or a place's video, sent in parts of at most 384 kB: one tall PNG, 128 wide, frames of 128 × 128 under each other, at most 300 frames and 8 MB. Answer to each part: `clip_result`, to this client; after the last part everyone gets `clip_files`. |
 | `clip_play` | `id` | Shows a clip from clips.json now ("Play now"). |
 | `play` | `name`, or `steps` | Plays an animation from animations.json, or unsaved steps (a preview while editing). Example: `{"type": "play", "steps": [{"mood": "happy", "ms": 300, "hold_ms": 2500}]}` |
 | `ask` | `text`, optional `lang` (`"en"`, `"de"`) | A question, typed or heard. Without `lang` the language is guessed from the words. Answer: `answer`, to everyone. |
+| `board_info` | | What the board is doing. Answer: `board`, to this client. The Board tab asks every 2 s while it shows. |
 | `voice` | `state`: `"listening"` or `"idle"` | From the voice pipeline on the board: the wake word was heard, or no question followed. His face shows that he listens. |
 | `location` | `lat`, `lon` | The phone's GPS position. Later also `speed_kmh`, `acc_m` and `time` (to set the board's clock). |
 | `sim_car` | any car fields: `ignition`, `speed_kmh`, `rpm`, `oil_c`, `coolant_c`, `g_long`, `g_lat` | Simulator only: sets values on the simulated car, and stops a running scenario. |
@@ -56,6 +58,7 @@ Planned: `sim_clock` (fake time of day for testing night dimming).
 | `scene` | `scene`, `t` | What the displays show now. Sent only when it changes. `t` is when the board made it (seconds, its own clock): a page shows scenes that much apart, so a bumpy Wi-Fi does not make the face stutter (assets/scene_player.js). See [Scenes](#scenes). |
 | `status` | `mood`, `animation`, `rules`, `place`, `location`, `clip`, `assistant`, `asleep`, `brightness` | Sent when one of its fields changes. `mood` is the mood chosen by the rules; `animation` the one playing, or null; `rules` the ids of the active rules; `place` the id of the place we are in, or null; `location` `{lat, lon}` or null; `clip` the id of the clip on the display, or null; `assistant` `"idle"`, `"listening"`, `"thinking"` or `"speaking"`. |
 | `car` | car fields, `scenario`, `motion_g`, `sensor` | Current car data, at most 5 times a second. `motion_g` is null without motion data; `sensor` says whether it comes from a real Modulino Movement. |
+| `board` | `on_board`, `cpu` (`cur_mhz`, `max_mhz`, `hw_max_mhz`, `governor`, `freqs_mhz`, `governors`, `cores`), `temp_c`, `memory_mb` (`used`, `total`), `load`, `uptime_s`, `helper` | Answer to `board_info`. `on_board` is false in the PC simulator (then the values are the PC's). `helper` is what the board helper last did (config/.board_applied.json), or null when it is not installed. |
 | `answer` | `question`, `text`, `lang`, `source` | His answer to `ask`. `source`: `"data"` (exact, from the car and the map), `"model"` (the AI model) or `"none"` (he could not answer). Shown in the bubble, and read aloud where there is a speaker. |
 | `say` | `text`, `source` | The companion says a line; `source` is what made him say it, e.g. `rule cold_oil_rev` or `place kastelruth`. |
 | `log` | `level` (`info`, `warn`, `error`, `say`), `source`, `text` | Something happened: a rule turned on or off, a place was entered, a config problem. |

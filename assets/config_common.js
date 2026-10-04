@@ -1,10 +1,11 @@
 // Helpers shared by the tabs of the Configure dialog.
 
 // Send a whole config file; show "Saved", the errors or the warnings in `box`.
-// Returns true when it was saved.
-export async function saveConfig(request, name, data, box) {
+// Returns true when it was saved. patchConfig sends only some fields: the rest
+// of the file stays as written, without the defaults filled in.
+export async function saveConfig(request, name, data, box, type = 'config_set') {
   try {
-    const result = await request({ type: 'config_set', name, data }, 'config_result');
+    const result = await request({ type, name, data }, 'config_result');
     if (!result.ok) {
       showMessage(box, result.errors.join('\n'), 'error');
       return false;
@@ -15,6 +16,10 @@ export async function saveConfig(request, name, data, box) {
     showMessage(box, e.message, 'error');
     return false;
   }
+}
+
+export function patchConfig(request, name, changes, box) {
+  return saveConfig(request, name, changes, box, 'config_patch');
 }
 
 export function showMessage(box, text, kind = '') {

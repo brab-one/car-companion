@@ -69,6 +69,9 @@ const handlers = {
   clip_result(m) {
     configure.onReply(m);
   },
+  board(m) {
+    configure.onReply(m);
+  },
   images() {
     forgetPictures();
   },

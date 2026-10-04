@@ -16,9 +16,9 @@ from pathlib import Path
 
 from . import defaults
 from .jsonfile import dumps_compact, write_text_atomic
-from .validate import check
+from .validate import check, merged
 
-NAMES = ("faces", "animations", "rules", "places", "clips", "settings")
+NAMES = ("faces", "animations", "rules", "places", "clips", "settings", "board")
 
 
 class ConfigStore:
@@ -73,6 +73,19 @@ class ConfigStore:
         self._stamps[name] = _stamp(path)  # no need to reload what we just wrote
         self._keep_good(name, text)
         return []
+
+    def patch(self, name, changes):
+        """Change some fields of a file and keep the rest as written, without the
+        defaults it is completed with when loaded. Returns its problems ([] when saved)."""
+        if not isinstance(changes, dict):
+            return [f"{name}.json: expected the fields to change as an object {{...}}"]
+        try:
+            raw = json.loads((self.folder / f"{name}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raw = copy.deepcopy(self.data.get(name, {}))  # missing or broken: start from what runs now
+        if not isinstance(raw, dict):
+            raw = {}
+        return self.save(name, merged(raw, changes))
 
     def poll(self):
         """Reload the files that changed on disk. Returns their names."""

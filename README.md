@@ -213,6 +213,9 @@ The page:
     is bigger (never up), centred on black, and kept to 10 s at 10 frames a second, with a
     preview. Set how long it shows, how many minutes until it comes again, and optionally only
     when, e.g. `speed_kmh > 20`. "Play now" shows it at once.
+  - **Board**: what the board is doing (processor speed and limit, temperature, memory, load),
+    the time zone for his answers, face updates per second, and the board's own settings: the
+    processor's limit and power policy and Wi-Fi power saving (see "Board settings" below).
   - **Files**: edit any config file as JSON.
 
 The map needs internet (Leaflet and OpenStreetMap); the rest works without.
@@ -238,6 +241,23 @@ The board's log:
 ```bash
 adb shell TMPDIR=/tmp arduino-app-cli app logs /home/arduino/ArduinoApps/car-companion
 ```
+
+### Board settings
+
+The companion runs in a container that may read the board's settings but not
+change them. Configure > Board saves them to `config/board.json`; a small helper
+service on the board applies them as root (`board/board_helper.py`). Install it
+once (it asks for the board's password, the one from its first setup):
+
+```bash
+tools/install_board_helper.sh
+```
+
+It only sets values the hardware lists as available, puts the board's own back
+for a setting left empty, and writes what it did to `config/.board_applied.json`,
+which the Board tab shows. `--remove` takes it off again. Above 1.42 GHz the UNO
+Q uses boost frequencies: the AI model gets faster, the board warmer, and it
+needs a strong USB-C supply.
 
 ### Modulino Movement
 
@@ -440,6 +460,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 | `say_gap_s` | At least this long between two lines. |
 | `sleep_after_off_s` | Display off this long after the ignition is turned off. |
 | `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |
+| `timezone` | For his answers, e.g. `"Europe/Rome"`; `""` is the board's own clock (UTC). |
 | `thresholds` | Numbers the rules use as `$name`. Add your own. |
 | `assistant` | Questions: `enabled`; `car` (its make and model, e.g. `"Subaru BRZ"`); `wake_words` (any phrases, e.g. `["hey buddy", "hallo kumpel"]`); `languages` (`"en"`, `"de"`; the first when unsure); `nearby_km` (how far around he looks); `llm_max_tokens`, `llm_temperature`, `llm_timeout_s` for the AI model. |
 

@@ -153,6 +153,26 @@ class ConfigStoreTest(unittest.TestCase):
             "settings.json: assistant.nearby_km: 0 is outside the allowed range 1 to 200",
             "settings.json: assistant.llm_max_tokens: expected a whole number, got 2.5"])
 
+    def test_a_patch_changes_some_fields_and_keeps_the_rest_as_written(self):
+        self.write("settings.json", '{"fps": 20, "layout": {"dual_scale": 2.0}}')
+        s = self.store()
+        self.assertEqual(s.patch("settings", {"timezone": "Europe/Rome", "layout": {"look_x_px": 10}}), [])
+        self.assertEqual(json.loads((self.dir / "settings.json").read_text()),
+                         {"fps": 20, "layout": {"dual_scale": 2.0, "look_x_px": 10}, "timezone": "Europe/Rome"})
+        self.assertEqual((s.data["settings"]["timezone"], s.data["settings"]["chattiness"]), ("Europe/Rome", 2))
+        self.assertEqual(s.patch("settings", {"fps": 0}), ["settings.json: fps: 0 is outside the allowed range 1 to 60"])
+
+    def test_board_settings_and_time_zone_are_checked(self):
+        _, errors = check("board", {"cpu_max_mhz": 99999, "cpu_governor": "Fast!", "wifi_powersave": "off", "fan": 1})
+        self.assertEqual(errors, [
+            "board.json: fan: unknown field (allowed: version, cpu_max_mhz, cpu_governor, wifi_powersave)",
+            "board.json: cpu_max_mhz: 99999 is outside the allowed range 100 to 5000",
+            'board.json: cpu_governor: expected a name like "schedutil", or null, got "Fast!"',
+            'board.json: wifi_powersave: expected true, false or null, got "off"'])
+        self.assertEqual(check("settings", {"timezone": "Europe/Rome"})[1], [])
+        self.assertEqual(check("settings", {"timezone": "Mars/Olympus"})[1],
+                         ['settings.json: timezone: expected a time zone like "Europe/Rome", or "", got "Mars/Olympus"'])
+
     def test_atomic_write_leaves_no_temp_file(self):
         write_text_atomic(self.dir / "x.json", "{}")
         self.assertEqual((self.dir / "x.json").read_text(), "{}")

@@ -107,6 +107,7 @@
           <button type="button" data-tab="ranges">Car data</button>
           <button type="button" data-tab="places">Places</button>
           <button type="button" data-tab="clips">Clips</button>
+          <button type="button" data-tab="board">Board</button>
           <button type="button" data-tab="files">Files</button>
         </nav>
         <button id="close-config" type="button" aria-label="Close">✕</button>
@@ -232,6 +233,40 @@
             <pre id="clip-message" class="message"></pre>
           </div>
         </div>
+      </div>
+
+      <div id="tab-board" class="tab-pane" hidden>
+        <p id="board-where" class="hint"></p>
+        <dl id="board-info" class="board-info"></dl>
+        <form id="board-form" class="place-form">
+          <h3>For the companion</h3>
+          <div class="row">
+            <label>Time zone, for his answers
+              <input id="board-timezone" list="timezones" placeholder="the board's own (UTC)" /></label>
+            <datalist id="timezones">
+              <option value="Europe/Rome"></option><option value="Europe/Berlin"></option>
+              <option value="Europe/Vienna"></option><option value="Europe/Zurich"></option>
+              <option value="Europe/London"></option><option value="UTC"></option>
+            </datalist>
+            <label>Face updates per second <input id="board-fps" type="number" min="1" max="60" /></label>
+          </div>
+          <h3>For the board</h3>
+          <div class="row">
+            <label>Processor limit <select id="board-cpu-max"></select></label>
+            <label>Power policy <select id="board-governor"></select></label>
+            <label>Wi-Fi power saving
+              <select id="board-wifi">
+                <option value="">the board's own</option>
+                <option value="off">off (smoother over Wi-Fi)</option>
+                <option value="on">on</option>
+              </select></label>
+          </div>
+          <p class="hint">Above 1.42 GHz the UNO Q uses its boost frequencies: the AI model answers faster, but
+            the board gets warmer and needs a strong USB-C supply. If it becomes unstable, choose the board's own.</p>
+          <p id="board-helper" class="hint"></p>
+          <div class="row"><button type="submit" class="primary">Save</button></div>
+          <pre id="board-message" class="message"></pre>
+        </form>
       </div>
 
       <div id="tab-files" class="tab-pane" hidden>

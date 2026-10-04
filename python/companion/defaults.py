@@ -35,6 +35,7 @@ SETTINGS = {
     "say_gap_s": 8,            # at least this many seconds between two lines
     "sleep_after_off_s": 20,   # display off this long after the ignition is turned off
     "place_exit_margin": 0.2,  # a place is left at radius_m * (1 + this), see geofence.py
+    "timezone": "",            # e.g. "Europe/Rome" for his answers; "" is the board's own (UTC)
     "assistant": {             # questions to him, see assistant.py
         "enabled": True,
         "car": "",             # its make and model, e.g. "Subaru BRZ", for "what car is it?"
@@ -86,5 +87,12 @@ PLACES = {"version": 1, "places": []}
 
 CLIPS = {"version": 1, "clips": []}
 
+BOARD = {  # applied by the board helper (board/board_helper.py); null leaves the board's own value
+    "version": 1,
+    "cpu_max_mhz": None,     # the processor's frequency limit
+    "cpu_governor": None,    # its power policy, e.g. "schedutil" or "performance"
+    "wifi_powersave": None,  # true or false
+}
+
 FILES = {"faces": FACES, "animations": ANIMATIONS, "rules": RULES,
-         "places": PLACES, "clips": CLIPS, "settings": SETTINGS}
+         "places": PLACES, "clips": CLIPS, "settings": SETTINGS, "board": BOARD}

@@ -13,12 +13,14 @@ scene. Questions ("ask") are answered from the data or by the AI model
 handle a new message type, add an on_<type> method and list it in HANDLERS."""
 
 import collections
+import datetime
 import math
 import queue
 import time
+import zoneinfo
 from pathlib import Path
 
-from . import assistant, layout, speech, validate
+from . import assistant, board, layout, speech, validate
 from .animator import Animator, Tween
 from .car_sim import SCENARIOS, CarSim
 from .clips import ClipFiles, ClipPlayer, frame_at
@@ -39,21 +41,23 @@ SOURCE_TEXT = {"file": "file", "last_good": "last good version", "defaults": "bu
 
 class Companion:
     def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print, clips_dir=None,
-                 llm=None, wall_clock=time.localtime, warm_up=False):
+                 llm=None, wall_clock=time.time, warm_up=False, on_board=False):
         """send(msg, to): deliver msg to client `to`, or to every client when to is None.
         images_dir: where place pictures are (default: assets/images next to config/);
         clips_dir: where clips are (default: clips next to images_dir).
         echo(line): prints log lines (App Lab shows them); tests pass a silent one.
         llm: answers questions the data cannot (llm.LlmClient), or None;
         warm_up: have it load and read its instructions right away.
-        wall_clock(): the local time, for questions."""
+        wall_clock(): the time in seconds since 1970, for questions.
+        on_board: running on the UNO Q (python/main.py), not in the PC simulator."""
         self._send = send
         self._clock = clock
         self._echo = echo
         self._inbox = queue.Queue()
         self._samples = queue.Queue()
         self.recent_log = collections.deque(maxlen=LOG_KEEP)
-        config_dir = Path(config_dir)
+        self.config_dir = config_dir = Path(config_dir)
+        self.on_board = on_board
         self.images = Images(images_dir or config_dir.parent / "assets" / "images")
         self.clip_files = ClipFiles(clips_dir or self.images.folder.parent / "clips")
         self.pois = Pois(self.images.folder.parent / "poi.json")  # from tools/fetch_poi.py
@@ -254,8 +258,13 @@ class Companion:
         return assistant.Facts(
             car=dict(self.car.state), thresholds=cfg["settings"]["thresholds"], location=self.location,
             place=next((p for p in places if p["id"] == self.geo.current), None), places=places,
-            pois=self.pois.all(), nearby_km=cfg["settings"]["assistant"]["nearby_km"], local_time=self._wall(),
+            pois=self.pois.all(), nearby_km=cfg["settings"]["assistant"]["nearby_km"], local_time=self._local_time(),
             car_name=cfg["settings"]["assistant"]["car"])
+
+    def _local_time(self):
+        """For answers: in the time zone from settings.json, or the board's own."""
+        t, tz = self._wall(), self.store.data["settings"]["timezone"]
+        return datetime.datetime.fromtimestamp(t, zoneinfo.ZoneInfo(tz)).timetuple() if tz else time.localtime(t)
 
     def _model_answered(self, ask_id, text, error, now):
         if ask_id not in self._waiting:
@@ -333,6 +342,18 @@ class Companion:
         warnings = []
         if not errors:
             self.log("info", f"{name}.json saved from the app", "config")
+            self._config_changed(name, self._clock())
+            warnings = validate.cross_check(self.store.data, self.images.names(), self.clip_files.names())
+        self.send({"type": "config_result", "name": name, "ok": not errors,
+                   "errors": errors, "warnings": warnings}, to=client)
+
+    def on_config_patch(self, msg, client):
+        """Like config_set, for some fields only: the rest of the file stays as written."""
+        name = msg.get("name")
+        errors = self.store.patch(name, msg.get("data")) if name in self.store.names else [f"unknown config {name!r}"]
+        warnings = []
+        if not errors:
+            self.log("info", f"{name}.json changed from the app", "config")
             self._config_changed(name, self._clock())
             warnings = validate.cross_check(self.store.data, self.images.names(), self.clip_files.names())
         self.send({"type": "config_result", "name": name, "ok": not errors,
@@ -424,6 +445,10 @@ class Companion:
         elif state == "idle" and self.assistant_state == "listening":
             self._set_assistant("idle", self._clock())
 
+    def on_board_info(self, msg, client):
+        """The Board tab asks every few seconds while it is open."""
+        self.send({"type": "board", **board.info(self.config_dir, on_board=self.on_board)}, to=client)
+
     def on_sim_car(self, msg, client):
         self.car.set({k: v for k, v in msg.items() if k != "type"})
 
@@ -441,6 +466,7 @@ class Companion:
         "hello": on_hello,
         "config_get": on_config_get,
         "config_set": on_config_set,
+        "config_patch": on_config_patch,
         "image_put": on_image_put,
         "clip_put": on_clip_put,
         "clip_play": on_clip_play,
@@ -448,6 +474,7 @@ class Companion:
         "location": on_location,
         "ask": on_ask,
         "voice": on_voice,
+        "board_info": on_board_info,
         "sim_car": on_sim_car,
         "sim_scenario": on_sim_scenario,
         "sim_motion": on_sim_motion,
