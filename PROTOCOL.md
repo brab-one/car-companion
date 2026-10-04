@@ -53,7 +53,7 @@ Planned: `sim_clock` (fake time of day for testing night dimming).
 | `images` | `names` | The place pictures there are now. |
 | `clip_result` | `name`, `ok`, `done`, `error` | Answer to each part of `clip_put`; `done` once the whole clip is stored. |
 | `clip_files` | `names` | The clip files there are now. |
-| `scene` | `scene` | What the displays show now. Sent only when it changes. See [Scenes](#scenes). |
+| `scene` | `scene`, `t` | What the displays show now. Sent only when it changes. `t` is when the board made it (seconds, its own clock): a page shows scenes that much apart, so a bumpy Wi-Fi does not make the face stutter (assets/scene_player.js). See [Scenes](#scenes). |
 | `status` | `mood`, `animation`, `rules`, `place`, `location`, `clip`, `assistant`, `asleep`, `brightness` | Sent when one of its fields changes. `mood` is the mood chosen by the rules; `animation` the one playing, or null; `rules` the ids of the active rules; `place` the id of the place we are in, or null; `location` `{lat, lon}` or null; `clip` the id of the clip on the display, or null; `assistant` `"idle"`, `"listening"`, `"thinking"` or `"speaking"`. |
 | `car` | car fields, `scenario`, `motion_g`, `sensor` | Current car data, at most 5 times a second. `motion_g` is null without motion data; `sensor` says whether it comes from a real Modulino Movement. |
 | `answer` | `question`, `text`, `lang`, `source` | His answer to `ask`. `source`: `"data"` (exact, from the car and the map), `"model"` (the AI model) or `"none"` (he could not answer). Shown in the bubble, and read aloud where there is a speaker. |

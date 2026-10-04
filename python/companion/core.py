@@ -493,7 +493,7 @@ class Companion:
             scene["bubble"] = self.speech[0]
         if scene != self.scene:
             self.scene = scene
-            self.send({"type": "scene", "scene": scene})
+            self.send({"type": "scene", "scene": scene, "t": round(now, 3)})  # t: apps can show it evenly
         status = {"mood": self.animator.base_mood, "animation": self.animator.playing,
                   "rules": self._active, "place": self.geo.current, "location": self.location,
                   "clip": self.clips.current[0]["id"] if self.clips.current else None,

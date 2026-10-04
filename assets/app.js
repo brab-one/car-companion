@@ -2,6 +2,7 @@
 // to the panels. Every message is {type, ...} on the "msg" channel (PROTOCOL.md).
 
 import { CanvasRenderer, forgetPictures } from './render_canvas.js';
+import { ScenePlayer } from './scene_player.js';
 import { PhonePanel } from './panel_phone.js';
 import { ChatPanel } from './panel_chat.js';
 import { CarPanel } from './panel_car.js';
@@ -16,6 +17,7 @@ const send = (msg) => ui.send_message(CHANNEL, msg);
 const app = { config: {}, status: null }; // shared with the Configure dialog
 
 const screen = new CanvasRenderer(document.querySelector('#displays'));
+const player = new ScenePlayer((scene) => screen.draw(scene)); // evenly, also over a bumpy Wi-Fi
 const phone = new PhonePanel(document.querySelector('#phone'), send);
 const chat = new ChatPanel(document.querySelector('#chat-card'), send);
 const car = new CarPanel(document.querySelector('#car'), send);
@@ -43,6 +45,7 @@ const handlers = {
     for (const name of Object.keys(m.config_source)) {
       phone.setConfigErrors(name, m.config_errors[name], m.config_source[name]);
     }
+    player.reset();
     if (m.scene) screen.draw(m.scene);
     if (m.status) handlers.status(m.status);
     if (m.car) handlers.car(m.car);
@@ -73,7 +76,7 @@ const handlers = {
     forgetPictures();
   },
   scene(m) {
-    screen.draw(m.scene);
+    player.push(m.scene, m.t);
   },
   status(m) {
     app.status = m;
