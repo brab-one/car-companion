@@ -2,6 +2,17 @@
   "version": 1,
   "places": [
     {"id": "kastelruth", "name": "Kastelruth / Castelrotto", "lat": 46.567, "lon": 11.567, "radius_m": 2000, "image": "schlern.png", "caption": "Schlern", "say": "There's the Schlern.", "show_s": 8, "cooldown_min": 60},
-    {"id": "villnoess", "name": "Villnoess / Funes", "lat": 46.65, "lon": 11.683, "radius_m": 4000, "image": "geisler.png", "caption": "Geisler", "say": "The Geisler peaks.", "show_s": 8, "cooldown_min": 60}
+    {
+      "id": "villnoess",
+      "name": "Villnoess / Funes",
+      "lat": 46.65,
+      "lon": 11.683,
+      "radius_m": 4000,
+      "clip": {"file": "place-villnoess.png", "frames": 42, "fps": 10},
+      "caption": "Geisler",
+      "say": "The Geisler peaks.",
+      "show_s": 8,
+      "cooldown_min": 60
+    }
   ]
 }
