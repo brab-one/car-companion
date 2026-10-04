@@ -139,6 +139,8 @@ He answers these exactly and at once, from the data:
 | Where am I? · Wo sind wir? | Wir sind in Kastelruth. |
 | Nearest gas station? · Wo kann ich tanken? | The nearest fuel station is GNP-Tankstelle Kastelruth, 850 m south-west. |
 | Which mountain is that? · Welcher Berg ist das? | the peaks that look biggest from where you are |
+| How high is the Santner? · Wie weit ist es nach Bozen? | Santner is 2414 m high, 4.6 km south of here. |
+| What time is it? · What car is it? | It's 13:16. · We're in a Subaru BRZ. (`assistant.car`) |
 
 For the map, download the points of interest around your places once (towns,
 peaks, passes, lakes, castles, sights, fuel and charging stations; needs
@@ -161,6 +163,14 @@ OpenAI-compatible server, e.g. llama.cpp's `llama-server` with a small model:
 ```bash
 python3 tools/run_pc.py --llm http://localhost:8080/v1
 ```
+
+The model only gets the facts a question is about, and keeps its instructions
+read between questions (one slot per language; it reads them right after a
+start). On the board an exact answer takes a fraction of a second, one from the
+AI model about 8 to 15 seconds: the board reads about 10 tokens a second. The AI
+model is small (0.8 billion parameters), so it is best at putting facts into a
+sentence, not at knowing things. Questions wait their turn; every one gets its
+answer.
 
 Without a model he says "I can't answer that yet." While he listens and
 thinks he plays the animations `listening` and `thinking` (animations.json);
@@ -431,7 +441,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 | `sleep_after_off_s` | Display off this long after the ignition is turned off. |
 | `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |
 | `thresholds` | Numbers the rules use as `$name`. Add your own. |
-| `assistant` | Questions: `enabled`; `wake_words` (any phrases, e.g. `["hey buddy", "hallo kumpel"]`); `languages` (`"en"`, `"de"`; the first when unsure); `nearby_km` (how far around he looks); `llm_max_tokens`, `llm_temperature`, `llm_timeout_s` for the AI model. |
+| `assistant` | Questions: `enabled`; `car` (its make and model, e.g. `"Subaru BRZ"`); `wake_words` (any phrases, e.g. `["hey buddy", "hallo kumpel"]`); `languages` (`"en"`, `"de"`; the first when unsure); `nearby_km` (how far around he looks); `llm_max_tokens`, `llm_temperature`, `llm_timeout_s` for the AI model. |
 
 ## Where the next parts plug in
 

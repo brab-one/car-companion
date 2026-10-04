@@ -366,6 +366,8 @@ def _assistant(a, spec, errors):
     _known_keys(a, spec, "assistant", errors)
     if not isinstance(a["enabled"], bool):
         errors.append(f"assistant.enabled: expected true or false, got {_show(a['enabled'])}")
+    if not isinstance(a["car"], str):
+        errors.append(f'assistant.car: expected text like "Subaru BRZ", got {_show(a["car"])}')
     words = a["wake_words"]
     if not (isinstance(words, list) and words and all(isinstance(w, str) and w.strip() for w in words)):
         errors.append(f'assistant.wake_words: expected a list of phrases like ["hey buddy"], got {_show(words)}')

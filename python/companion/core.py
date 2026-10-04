@@ -39,12 +39,13 @@ SOURCE_TEXT = {"file": "file", "last_good": "last good version", "defaults": "bu
 
 class Companion:
     def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print, clips_dir=None,
-                 llm=None, wall_clock=time.localtime):
+                 llm=None, wall_clock=time.localtime, warm_up=False):
         """send(msg, to): deliver msg to client `to`, or to every client when to is None.
         images_dir: where place pictures are (default: assets/images next to config/);
         clips_dir: where clips are (default: clips next to images_dir).
         echo(line): prints log lines (App Lab shows them); tests pass a silent one.
-        llm: answers questions the data cannot (llm.LlmClient), or None.
+        llm: answers questions the data cannot (llm.LlmClient), or None;
+        warm_up: have it load and read its instructions right away.
         wall_clock(): the local time, for questions."""
         self._send = send
         self._clock = clock
@@ -86,9 +87,10 @@ class Companion:
         self._missing_logged = False
         self._wall = wall_clock
         self._answers = queue.Queue()  # (ask id, text, error) from the AI model's thread
-        self.asker = assistant.Asker(llm, lambda *answer: self._answers.put(answer)) if llm else None
+        languages = self.store.data["settings"]["assistant"]["languages"] if warm_up else ()
+        self.asker = assistant.Asker(llm, lambda *answer: self._answers.put(answer), languages) if llm else None
         self.assistant_state = "idle"  # "listening", "thinking" or "speaking"
-        self._asking = None            # (id, question, language) while the AI model thinks
+        self._waiting = {}             # ask id -> (question, language) while the AI model thinks
         self._asked = 0
         self._pages = collections.deque()  # the rest of an answer, one bubble each
 
@@ -187,7 +189,7 @@ class Companion:
         self.log("info", "ignition on: waking up", "car")
 
     def _sleep(self, now):
-        self._asking = None
+        self._waiting.clear()
         self._pages.clear()
         self._set_assistant("idle", now)
         self.asleep = True
@@ -252,13 +254,13 @@ class Companion:
         return assistant.Facts(
             car=dict(self.car.state), thresholds=cfg["settings"]["thresholds"], location=self.location,
             place=next((p for p in places if p["id"] == self.geo.current), None), places=places,
-            pois=self.pois.all(), nearby_km=cfg["settings"]["assistant"]["nearby_km"], local_time=self._wall())
+            pois=self.pois.all(), nearby_km=cfg["settings"]["assistant"]["nearby_km"], local_time=self._wall(),
+            car_name=cfg["settings"]["assistant"]["car"])
 
     def _model_answered(self, ask_id, text, error, now):
-        if not self._asking or self._asking[0] != ask_id:
-            return  # an earlier question, or he fell asleep meanwhile
-        _, question, lang = self._asking
-        self._asking = None
+        if ask_id not in self._waiting:
+            return  # he fell asleep meanwhile
+        question, lang = self._waiting.pop(ask_id)
         if error is not None:
             self.log("warn", f"AI model: {error}", "assistant")
             self._answer(question, assistant.NO_MODEL[lang], lang, "none", now)
@@ -270,9 +272,10 @@ class Companion:
         self.send({"type": "answer", "question": question, "text": text, "lang": lang, "source": source})
         self.log("say", text, "answer")
         self._last_say = now
-        self._pages = collections.deque(speech.pages(text))
-        self._set_assistant("speaking", now)
-        self._show_bubble(self._pages.popleft(), now)
+        self._pages.extend(speech.pages(text))  # after an answer still showing, if there is one
+        if self.assistant_state != "speaking" or not self.speech:
+            self._set_assistant("speaking", now)
+            self._show_bubble(self._pages.popleft(), now)
 
     def _set_assistant(self, state, now):
         if state != self.assistant_state:
@@ -283,7 +286,7 @@ class Companion:
     def _play_face(self, name, now):
         """The "listening" or "thinking" animation from animations.json, or built-in steps."""
         if not self.animator.play(name, now):
-            self.animator.play(assistant.FACE_STEPS[name], now)
+            self.animator.play(assistant.FACE_STEPS[name], now, name=name)
 
     # ---- incoming messages ----------------------------------------------------
 
@@ -395,18 +398,18 @@ class Companion:
             text = (assistant.SWITCHED_OFF if not cfg["enabled"] else assistant.ASLEEP)[lang]
             self.send({"type": "answer", "question": question, "text": text, "lang": lang, "source": "none"})
             return
-        self._asking = None  # a new question replaces one the AI model still thinks about
         facts = self._facts()
         answer = assistant.direct_answer(question, lang, facts)
         if answer:
             self._answer(question, answer, lang, "data", now)
         elif self.asker:
             self._asked += 1
-            self._asking = (self._asked, question, lang)
-            self._pages.clear()
-            self._set_assistant("thinking", now)
+            self._waiting[self._asked] = (question, lang)
+            if self.assistant_state != "speaking":
+                self._set_assistant("thinking", now)
             self.asker.ask(self._asked, assistant.messages(question, lang, facts), max_tokens=cfg["llm_max_tokens"],
-                           temperature=cfg["llm_temperature"], timeout=cfg["llm_timeout_s"])
+                           temperature=cfg["llm_temperature"], timeout=cfg["llm_timeout_s"],
+                           slot=assistant.SLOTS[lang])
         else:
             self._answer(question, assistant.UNKNOWN[lang], lang, "none", now)
 
@@ -467,7 +470,7 @@ class Companion:
                 self.lift.to(0.0, now, LIFT_MS)
         if self.assistant_state == "speaking" and not self.speech:
             self._pages.clear()
-            self._set_assistant("idle", now)
+            self._set_assistant("thinking" if self._waiting else "idle", now)  # more questions to come?
         if now >= self._display_off_at:
             scene = {"kind": "off"}
         elif self.place_media:

@@ -78,27 +78,46 @@ class DirectAnswerTest(unittest.TestCase):
                          "Peaks nearby: Santner 2414 m, 3.4 km south; Katzenlochbühel 1162 m, 1.5 km west.")
         self.assertEqual(self.ask("Tankstelle?", facts(pois=[])), assistant.NO_MAP["de"])
 
+    def test_height_and_distance_of_places_on_the_map(self):
+        self.assertEqual(self.ask("How high is the Santner?"), "Santner is 2414 m high, 3.4 km south of here.")
+        self.assertEqual(self.ask("Wie weit ist es nach Bozen?"), "Bozen ist 17 km westlich von hier.")
+        self.assertEqual(self.ask("Wie hoch liegt Bozen?"), "Ich weiß nicht, wie hoch Bozen liegt.")
+        self.assertEqual(self.ask("How far is the nearest fuel station?"),  # names no place: the fuel answer
+                         "The nearest fuel station is Eni, 1.4 km north-west.")
+
     def test_other_questions_are_for_the_ai_model(self):
-        for question in ("How high is the Santner?", "Tell me about Kastelruth", "What is the speed limit?"):
+        for question in ("Tell me about Kastelruth", "What is the speed limit?", "How high is Mount Everest?"):
             self.assertIsNone(self.ask(question), question)
 
 
 class FactsTest(unittest.TestCase):
-    def test_facts_for_the_ai_model(self):
-        text = facts_text(facts(), "de", "Wie weit ist es nach Bozen?")
-        self.assertIn("Auto: 62 km/h, 2400 U/min, Öl 45 °C (noch kalt), Kühlwasser 88 °C.", text)
-        self.assertIn("Wir sind in Seis am Schlern.", text)
-        self.assertIn("Bozen (Stadt) 17 km westlich", text)  # named in the question: any distance
-        self.assertIn("Santner (Berg, 2414 m) 3,4 km südlich", text)
-        self.assertIn("Kastelruth / Castelrotto (einer deiner Orte) 3,0 km nördlich", text)
+    def test_the_model_hears_only_what_the_question_is_about(self):
+        self.assertEqual(facts_text(facts(), "de", "Wie weit ist es nach Bozen?"),
+                         "Wir sind in Seis am Schlern.\nOrte: Bozen: Stadt, 17 km westlich.")
+        self.assertEqual(facts_text(facts(), "en", "How high is the Santner?"),
+                         "We are in Seis am Schlern.\nPlaces: Santner: peak, 2414 m high, 3.4 km south.")
+        self.assertIn("Places: Eni: fuel station, 1.4 km north-west.", facts_text(facts(), "en", "Cheap petrol here?"))
+        self.assertIn("Car: 62 km/h, 2400 rpm, oil 45 °C (still cold), coolant 88 °C.",
+                      facts_text(facts(), "en", "Is the car ok?"))
+        anything = facts_text(facts(), "en", "Tell me something nice")  # a little of everything around
+        self.assertIn("Seis am Schlern: village, 600 m north", anything)
+        self.assertIn("Kastelruth / Castelrotto: one of your places", facts_text(facts(location={"lat": 46.560,
+                                                                                               "lon": 11.567}), "en"))
         self.assertIn("No map data", facts_text(facts(pois=[]), "en"))
 
     def test_the_chat_has_instructions_facts_and_the_question(self):
-        chat = messages("How high is the Santner?", "en", facts())
+        chat = messages("Is the Santner hard to climb?", "en", facts())
         self.assertEqual([m["role"] for m in chat], ["system", "user"])
-        self.assertTrue(chat[0]["content"].startswith(assistant.SYSTEM["en"]))
-        self.assertIn("Santner (peak, 2414 m)", chat[0]["content"])
-        self.assertEqual(chat[1]["content"], "How high is the Santner?")
+        self.assertEqual(chat[0]["content"], assistant.SYSTEM["en"])  # the same every time
+        self.assertEqual(chat[1]["content"], "Facts:\nWe are in Seis am Schlern.\n"
+                                             "Places: Santner: peak, 2414 m high, 3.4 km south.\n\n"
+                                             "Question: Is the Santner hard to climb?")
+
+    def test_the_time_is_answered_from_the_clock(self):
+        self.assertRegex(direct_answer("What time is it?", "en", facts()), r"^It's \d+:\d\d\.$")
+        unset = facts()
+        unset.local_time = time.gmtime(0)  # 1970: the board's clock was never set
+        self.assertEqual(direct_answer("Wie spät ist es?", "de", unset), "Ich weiß die Uhrzeit nicht.")
 
 
 class LlmTest(unittest.TestCase):
@@ -138,8 +157,8 @@ class LlmTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
         self.assertEqual(answer, "Es ist warm.")
-        self.assertEqual((seen[0]["model"], seen[0]["max_tokens"], seen[0]["chat_template_kwargs"]),
-                         ("qwen-test", 50, {"enable_thinking": False}))
+        self.assertEqual((seen[0]["model"], seen[0]["max_tokens"], seen[0]["chat_template_kwargs"], seen[0]["id_slot"]),
+                         ("qwen-test", 50, {"enable_thinking": False}, 0))
 
     def test_no_server_is_a_clear_error(self):
         with self.assertRaisesRegex(ConnectionError, "no AI model at http://127.0.0.1:9/v1"):

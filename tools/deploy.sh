@@ -59,10 +59,15 @@ adb shell sync
 
 # AI models the bricks use (the LLM brick's "model:" in app.yaml) must be on the
 # board before the app starts. App Lab downloads them once, through its daemon.
+model_installed() {
+  adb shell "curl -s -m 10 http://127.0.0.1:8800/v1/models/$1" | grep -q '"status":"installed"'
+}
 for model in $(sed -n 's/^ *model: *\(llamacpp:[^ ]*\).*/\1/p' "$here/app.yaml"); do
-  if ! adb shell "curl -s -m 10 http://127.0.0.1:8800/v1/models/$model" | grep -q '"status":"installed"'; then
+  if ! model_installed "$model"; then
     echo "Downloading the AI model $model onto the board (once; a few minutes) ..."
-    adb shell "curl -sN -X PUT http://127.0.0.1:8800/v1/models/$model" | grep -E 'event: (done|error)' || true
+    adb shell "curl -sN -X PUT http://127.0.0.1:8800/v1/models/$model" |
+      awk -F'"progress":' '/"progress":/ { p = int($2); if (p >= next_p) { print "  " p " %"; fflush(); next_p = p + 10 } }'
+    model_installed "$model" || echo "  The download did not finish; the app cannot start without it. Deploy again to retry."
   fi
 done
 

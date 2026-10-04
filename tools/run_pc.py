@@ -152,7 +152,7 @@ def main():
 
     clients = Clients()
     brain = Companion(ROOT / "config", clients.send, echo=lambda line: print(line, flush=True),
-                      llm=LlmClient(args.llm) if args.llm else None)
+                      llm=LlmClient(args.llm) if args.llm else None, warm_up=bool(args.llm))
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     try:
         server = ThreadingHTTPServer((host, args.port), make_handler(clients, brain))

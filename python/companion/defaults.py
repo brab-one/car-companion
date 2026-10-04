@@ -37,10 +37,11 @@ SETTINGS = {
     "place_exit_margin": 0.2,  # a place is left at radius_m * (1 + this), see geofence.py
     "assistant": {             # questions to him, see assistant.py
         "enabled": True,
+        "car": "",             # its make and model, e.g. "Subaru BRZ", for "what car is it?"
         "wake_words": ["hey buddy", "hallo kumpel"],  # what makes him listen (with a microphone, on the board)
         "languages": ["en", "de"],  # what you may speak; the first is used when unsure
         "nearby_km": 20,       # how far around you he looks for places to talk about
-        "llm_max_tokens": 100, # the length of an answer from the AI model
+        "llm_max_tokens": 60,  # the length of an answer from the AI model
         "llm_temperature": 0.3,  # 0 plain .. 1 creative
         "llm_timeout_s": 60,   # how long he waits for the AI model
     },

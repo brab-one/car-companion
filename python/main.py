@@ -23,7 +23,7 @@ def send(msg, to=None):
 
 # Questions the data cannot answer go to App Lab's LLM brick (a small Qwen
 # model on llama.cpp), once arduino:llm is in app.yaml.
-brain = Companion(CONFIG_DIR, send, llm=LlmClient())
+brain = Companion(CONFIG_DIR, send, llm=LlmClient(), warm_up=True)
 ui.on_message(CHANNEL, lambda sid, data: brain.receive(data, sid))
 
 

@@ -10,6 +10,7 @@ runs on a worker thread (Asker). Companion.on_ask puts it together."""
 import queue
 import re
 import threading
+import time
 import unicodedata
 
 from .geofence import distance_m
@@ -24,16 +25,18 @@ ASLEEP = {"en": "I'm asleep. Turn the ignition on first.", "de": "Ich schlafe. M
 SWITCHED_OFF = {"en": "Questions are switched off (assistant.enabled in settings.json).",
                 "de": "Fragen sind ausgeschaltet (assistant.enabled in settings.json)."}
 
+# Short on purpose: on the board the AI model reads about 10 tokens a second, so
+# it only gets the facts a question is about (facts_text). The instructions come
+# first and never change, so the model can skip reading them again.
 SYSTEM = {
-    "en": "You are a small, friendly companion that lives on the dashboard of a car. Answer the driver's "
-          "question in English, in one or two short sentences (at most 30 words), as plain text without "
-          "lists. Use only the facts below. If they don't answer the question, say that you don't know.\n\n"
-          "Facts:\n",
-    "de": "Du bist ein kleiner, freundlicher Begleiter auf dem Armaturenbrett eines Autos. Beantworte die "
-          "Frage des Fahrers auf Deutsch, in ein oder zwei kurzen Sätzen (höchstens 30 Wörter), als "
-          "einfacher Text ohne Listen. Verwende nur die Fakten unten. Wenn sie die Frage nicht beantworten, "
-          "sag, dass du es nicht weißt.\n\nFakten:\n",
+    "en": "You are a little companion on a car's dashboard. Answer in English, in one short sentence that "
+          "names the places. Use only the facts given with the question; if they don't answer it, say you "
+          "don't know.",
+    "de": "Du bist ein kleiner Begleiter auf dem Armaturenbrett eines Autos. Antworte auf Deutsch, in einem "
+          "kurzen Satz, und nenne die Orte beim Namen. Verwende nur die Fakten bei der Frage; wenn sie die "
+          "Frage nicht beantworten, sag, dass du es nicht weißt.",
 }
+SLOTS = {"en": 0, "de": 1}  # one slot of the model's server per language keeps its instructions read
 
 # How his face shows that he listens and thinks, when animations.json has no
 # "listening" or "thinking" animation (the shipped animations.json has both).
@@ -73,6 +76,21 @@ _WORDS = {
 # from here, i.e. rise the most above you for how far away they are.
 PEAKS_KM = 15
 
+# Words in a question -> the kinds of places the AI model hears about (plain text, see _plain).
+TOPICS = [
+    (("castle",), r"castle|ruin|\bburg|schloss|ruine"),
+    (("lake",), r"\blakes?\b|\bsee\b|\bseen\b|weiher"),
+    (("pass",), r"\bpass(es)?\b|\bjoch|paesse"),
+    (SETTLEMENTS, r"village|\btowns?\b|\bcity\b|\bdorf|\bort\b|\borte\b|stadt"),
+    (("peak",), r"mountain|\bpeaks?\b|summit|\bberg|gipfel|kofel|spitze"),
+    (("viewpoint",), r"\bview|aussicht"),
+    (("attraction", "castle", "viewpoint"), r"sight|visit|interesting|worth|sehenswert|besichtig|anschauen"),
+    (("charging",), r"charg|\blade|electric|strom"),
+    (("fuel",), r"\bfuel|\bgas\b|petrol|tank|sprit|benzin|diesel"),
+]
+CAR_WORDS = r"\bcar\b|engine|\boil\b|coolant|speed|fast|\brpm|\bdriv|\bauto\b|motor|\boel|kuehl|schnell|fahr"
+TIME_WORDS = r"\btime\b|clock|\blate\b|\buhr|spaet"
+
 # What a question is about, tested in this order on the plain text (see _plain).
 INTENTS = [
     ("oil", r"\boil\b|\boel"),
@@ -80,11 +98,16 @@ INTENTS = [
     ("warm", r"(engine|motor)\b.*\bwarm|\bwarm\b.*\b(engine|motor)|warmed up|operating temp|betriebstemp"
              r"|warm ?gefahren"),
     ("rpm", r"\brpm\b|\brevs?\b|drehzahl|\btouren|umdrehung"),
+    ("height", r"how high|how tall|elevation|altitude|wie hoch|hoehe"),  # of a place the question names
+    ("distance", r"how far|distance|wie weit|entfern"),
     ("speed", r"how fast|\bspeed(?! limit)|wie schnell|geschwindigkeit(?!sbegrenzung)|\btempo(?!limit)"),
     ("fuel", r"\bfuel|gas station|petrol|\brefuel|tankstelle|tanken|\bsprit|benzin|diesel"),
     ("peak", r"mountain|\bpeaks?\b|summit|\bberg|gipfel"),
     ("where", r"where (am i|are we|is this)|what (place|town|village) is this|\blocation\b"
               r"|wo (bin ich|sind wir|ist das)\b|welche[rs]? ort|standort"),
+    ("time", r"what time|time is it|wie spaet|wieviel uhr|wie viel uhr|\buhrzeit"),
+    ("car", r"what (car|vehicle)|which car|car model|kind of car|what am i driving|welche[sn]? auto"
+            r"|was fuer ein auto|automarke|welche[sn]? fahrzeug|was fahre ich"),
 ]
 
 
@@ -102,8 +125,9 @@ class Facts:
     """What he knows when a question comes: the car, where you are, and what is around."""
 
     def __init__(self, car, thresholds, location=None, place=None, places=(), pois=(), nearby_km=20,
-                 local_time=None):
+                 local_time=None, car_name=""):
         self.car = car
+        self.car_name = car_name      # e.g. "Subaru BRZ" (settings: assistant.car)
         self.thresholds = thresholds
         self.location = location      # {"lat", "lon"}, or None before the first position
         self.place = place            # the places.json place you are in, or None
@@ -148,54 +172,82 @@ def direct_answer(question, lang, facts):
     q = _plain(question)
     for intent, pattern in INTENTS:
         if re.search(pattern, q):
-            return _ANSWERS[intent](facts, lang)
+            answer = _ANSWERS[intent](facts, lang, question)
+            if answer:
+                return answer
     return None
 
 
 def messages(question, lang, facts):
-    """The chat for the AI model: instructions with the facts, then the question."""
-    return [{"role": "system", "content": SYSTEM[lang] + facts_text(facts, lang, question)},
-            {"role": "user", "content": question}]
+    """The chat for the AI model: the instructions (always the same, so the model can
+    skip reading them again), then the facts right before the question, where a small
+    model pays most attention."""
+    label = ("Fakten", "Frage") if lang == "de" else ("Facts", "Question")
+    return [{"role": "system", "content": SYSTEM[lang]},
+            {"role": "user", "content": f"{label[0]}:\n{facts_text(facts, lang, question)}\n\n{label[1]}: {question}"}]
 
 
 def facts_text(f, lang, question=""):
+    """The facts for the AI model: where you are, and only what the question is about."""
     de = lang == "de"
-    lines = []
-    if f.local_time and f.local_time.tm_year >= 2025:  # an unset clock says 1970
-        lines.append(f"{'Uhrzeit' if de else 'Time'}: {f.local_time.tm_hour}:{f.local_time.tm_min:02d}.")
-    lines.append(_car_line(f, lang))
+    q = _plain(question)
     where = _where(f, lang)
-    if where:
-        lines.append(f"{'Wir sind' if de else 'We are'} {where}.")
-    else:
-        lines.append("Position unbekannt." if de else "Position unknown.")
-    near = _nearby(f, question)
-    if near:
-        lines.append(("In der Nähe: " if de else "Nearby: ") + "; ".join(_describe(*hit, lang) for hit in near) + ".")
+    lines = [f"{'Wir sind' if de else 'We are'} {where}." if where else
+             ("Position unbekannt." if de else "Position unknown.")]
+    picks = f.named(question, 2) + [hit for kinds, words in TOPICS if re.search(words, q)
+                                    for hit in f.around(kinds, 2)]
+    if not picks and not re.search(CAR_WORDS + "|" + TIME_WORDS, q):
+        picks = _nearby(f)  # nothing particular: a little of everything around
+    seen, places = set(), []
+    for item, m, bearing in picks:
+        if item["name"] not in seen:
+            seen.add(item["name"])
+            places.append(_describe(item, m, bearing, lang))
+    if places:
+        lines.append(("Orte: " if de else "Places: ") + "; ".join(places) + ".")
     if f.location and not f.pois:
         lines.append("Keine Kartendaten für die Gegend." if de else "No map data for the area.")
+    if re.search(CAR_WORDS, q):
+        lines.append(_car_line(f, lang))
+    if re.search(TIME_WORDS, q) and _clock_set(f):
+        lines.append(f"{'Uhrzeit' if de else 'Time'}: {f.local_time.tm_hour}:{f.local_time.tm_min:02d}.")
     return "\n".join(lines)
 
 
 class Asker:
     """Sends questions to the AI model one at a time, on a worker thread.
-    done(ask_id, text, error) is called from that thread when the answer is there."""
+    done(ask_id, text, error) is called from that thread when the answer is there.
+    warm_up: languages to have the model load and read the instructions for first,
+    so the first question after a start does not wait for that."""
 
-    def __init__(self, llm, done):
+    WARM_UP_TRIES = 6     # the model's server may still be starting
+    WARM_UP_WAIT_S = 10
+
+    def __init__(self, llm, done, warm_up=()):
         self._llm = llm
         self._done = done
         self._jobs = queue.Queue()
-        threading.Thread(target=self._run, name="asker", daemon=True).start()
+        self.warmed_up = threading.Event()
+        threading.Thread(target=self._run, args=(tuple(warm_up),), name="asker", daemon=True).start()
 
     def ask(self, ask_id, chat, **options):
         self._jobs.put((ask_id, chat, options))
 
-    def _run(self):
+    def _warm_up(self, languages):
+        for lang in languages:
+            chat = [{"role": "system", "content": SYSTEM[lang]}, {"role": "user", "content": "Hi"}]
+            for _ in range(self.WARM_UP_TRIES):
+                try:
+                    self._llm.chat(chat, max_tokens=1, timeout=120, slot=SLOTS[lang])
+                    break
+                except Exception:  # not up yet; a question would load it later anyway
+                    time.sleep(self.WARM_UP_WAIT_S)
+        self.warmed_up.set()
+
+    def _run(self, warm_up):
+        self._warm_up(warm_up)
         while True:
-            job = self._jobs.get()
-            while not self._jobs.empty():  # only the newest question counts
-                job = self._jobs.get_nowait()
-            ask_id, chat, options = job
+            ask_id, chat, options = self._jobs.get()  # one after the other: every question gets its answer
             try:
                 self._done(ask_id, self._llm.chat(chat, **options), None)
             except Exception as e:  # the model being away must not stop the companion
@@ -204,7 +256,7 @@ class Asker:
 
 # ---- exact answers ------------------------------------------------------------
 
-def _oil(f, lang):
+def _oil(f, lang, question=""):
     oil, warm = round(f.car["oil_c"]), f.thresholds.get("oil_warm_c", 80)
     if lang == "de":
         return f"Das Öl hat {oil} °C" + (", schön warm." if oil >= warm else
@@ -213,14 +265,14 @@ def _oil(f, lang):
                                         f", still cold (warm from {warm} °C). Take it easy.")
 
 
-def _coolant(f, lang):
+def _coolant(f, lang, question=""):
     coolant, hot = round(f.car["coolant_c"]), f.thresholds.get("coolant_hot_c", 105)
     if lang == "de":
         return f"Das Kühlwasser hat {coolant} °C." + (" Das ist zu heiß!" if coolant >= hot else "")
     return f"The coolant is at {coolant} °C." + (" That's too hot!" if coolant >= hot else "")
 
 
-def _warm(f, lang):
+def _warm(f, lang, question=""):
     oil, coolant, warm = round(f.car["oil_c"]), round(f.car["coolant_c"]), f.thresholds.get("oil_warm_c", 80)
     if oil >= warm:
         return (f"Ja, der Motor ist warm: Öl {oil} °C, Kühlwasser {coolant} °C." if lang == "de" else
@@ -229,28 +281,28 @@ def _warm(f, lang):
             f"Not yet: the oil is at {oil} °C, it's warm from {warm} °C.")
 
 
-def _rpm(f, lang):
+def _rpm(f, lang, question=""):
     rpm = round(f.car["rpm"])
     if not f.car.get("ignition") or rpm < 1:
         return "Der Motor ist aus." if lang == "de" else "The engine is off."
     return f"Der Motor dreht mit {rpm} U/min." if lang == "de" else f"The engine is at {rpm} rpm."
 
 
-def _speed(f, lang):
+def _speed(f, lang, question=""):
     v = round(f.car["speed_kmh"])
     if v < 1:
         return "Wir stehen." if lang == "de" else "We're standing still."
     return f"Wir fahren {v} km/h." if lang == "de" else f"We're doing {v} km/h."
 
 
-def _where_answer(f, lang):
+def _where_answer(f, lang, question=""):
     where = _where(f, lang)
     if not where:
         return NOT_LOCATED[lang]
     return f"Wir sind {where}." if lang == "de" else f"We're {where}."
 
 
-def _fuel(f, lang):
+def _fuel(f, lang, question=""):
     if not f.location:
         return NOT_LOCATED[lang]
     near = f.around(("fuel",), limit=1, max_km=max(f.nearby_km, 30))
@@ -263,7 +315,7 @@ def _fuel(f, lang):
     return f"The nearest fuel station is {_name(item, lang)}, {_direction(m, bearing, lang)}."
 
 
-def _peaks(f, lang):
+def _peaks(f, lang, question=""):
     if not f.location:
         return NOT_LOCATED[lang]
     near = f.around(("peak",), limit=200, max_km=min(f.nearby_km, PEAKS_KM))
@@ -276,26 +328,68 @@ def _peaks(f, lang):
     return ("Berge in der Nähe: " if lang == "de" else "Peaks nearby: ") + "; ".join(parts) + "."
 
 
+def _time(f, lang, question=""):
+    if not _clock_set(f):
+        return "Ich weiß die Uhrzeit nicht." if lang == "de" else "I don't know the time."
+    t = f"{f.local_time.tm_hour}:{f.local_time.tm_min:02d}"
+    return f"Es ist {t} Uhr." if lang == "de" else f"It's {t}."
+
+
+def _height_of(f, lang, question):
+    named = f.named(question, 1)
+    if not named:
+        return None  # not about a place on the map: the AI model may know
+    item, m, bearing = named[0]
+    name, away = _name(item, lang), _direction(m, bearing, lang)
+    if not _ele(item):
+        return (f"Ich weiß nicht, wie hoch {name} liegt." if lang == "de" else
+                f"I don't know how high {name} is.")
+    if lang == "de":
+        return f"{name} ist {round(_ele(item))} m hoch, {away} von hier."
+    return f"{name} is {round(_ele(item))} m high, {away} of here."
+
+
+def _distance_to(f, lang, question):
+    named = f.named(question, 1)
+    if not named:
+        return None  # e.g. "how far is the next fuel station": the other answers know
+    item, m, bearing = named[0]
+    away = _direction(m, bearing, lang)
+    return f"{_name(item, lang)} ist {away} von hier." if lang == "de" else f"{_name(item, lang)} is {away} of here."
+
+
+def _car_name(f, lang, question=""):
+    if not f.car_name:
+        return None  # nobody told him: the AI model will say it does not know
+    return f"Wir sitzen in einem {f.car_name}." if lang == "de" else f"We're in a {f.car_name}."
+
+
+def _clock_set(f):
+    return f.local_time is not None and f.local_time.tm_year >= 2025  # an unset clock says 1970
+
+
 def _ground(f):
     """About how high you are: the nearest village's elevation (later the phone's GPS)."""
     return next((_ele(item) for item, _, _ in f.around(SETTLEMENTS, limit=3, max_km=5) if _ele(item)), 0)
 
 
 _ANSWERS = {"oil": _oil, "coolant": _coolant, "warm": _warm, "rpm": _rpm, "speed": _speed,
-            "fuel": _fuel, "peak": _peaks, "where": _where_answer}
+            "fuel": _fuel, "peak": _peaks, "where": _where_answer, "time": _time,
+            "height": _height_of, "distance": _distance_to, "car": _car_name}
 
 
 # ---- wording --------------------------------------------------------------------
 
 def _car_line(f, lang):
-    c = f.car
+    c, de = f.car, lang == "de"
+    label = ("Auto" if de else "Car") + (f" ({f.car_name})" if f.car_name else "")
     if not c.get("ignition"):
-        return "Auto: Zündung aus." if lang == "de" else "Car: ignition off."
+        return f"{label}: {'Zündung aus' if de else 'ignition off'}."
     warm = c["oil_c"] >= f.thresholds.get("oil_warm_c", 80)
-    if lang == "de":
-        return (f"Auto: {round(c['speed_kmh'])} km/h, {round(c['rpm'])} U/min, Öl {round(c['oil_c'])} °C "
+    if de:
+        return (f"{label}: {round(c['speed_kmh'])} km/h, {round(c['rpm'])} U/min, Öl {round(c['oil_c'])} °C "
                 f"({'warm' if warm else 'noch kalt'}), Kühlwasser {round(c['coolant_c'])} °C.")
-    return (f"Car: {round(c['speed_kmh'])} km/h, {round(c['rpm'])} rpm, oil {round(c['oil_c'])} °C "
+    return (f"{label}: {round(c['speed_kmh'])} km/h, {round(c['rpm'])} rpm, oil {round(c['oil_c'])} °C "
             f"({'warm' if warm else 'still cold'}), coolant {round(c['coolant_c'])} °C.")
 
 
@@ -316,22 +410,16 @@ def _where(f, lang):
     return f"bei {lat}, {lon}" if lang == "de" else f"at {lat}, {lon}"
 
 
-def _nearby(f, question):
-    """A short mix of what is around, plus what the question names, without repeats."""
-    picks = (f.named(question) + f.around(SETTLEMENTS, 2) + f.around(("place",), 1) + f.around(("peak",), 2)
-             + f.around(("pass", "lake", "castle", "attraction", "viewpoint"), 2) + f.around(("fuel",), 1))
-    seen, out = set(), []
-    for hit in picks:
-        if hit[0]["name"] not in seen:
-            seen.add(hit[0]["name"])
-            out.append(hit)
-    return out
+def _nearby(f):
+    """A little of everything around."""
+    return (f.around(SETTLEMENTS, 1) + f.around(("place",), 1, max_km=3) + f.around(("peak",), 2)
+            + f.around(("pass", "lake", "castle", "attraction", "viewpoint"), 1) + f.around(("fuel",), 1))
 
 
 def _describe(item, m, bearing, lang):
-    """e.g. "Petz (peak, 2563 m) 5.1 km south-east"."""
-    kind = KIND_WORDS[lang][item["kind"]]
-    return f"{_name(item, lang)} ({kind}{_height(item, ', ')}) {_direction(m, bearing, lang)}"
+    """Spelled out for a small model, e.g. "Santner: peak, 2414 m high, 4.6 km south"."""
+    high = f", {round(_ele(item))} m {'hoch' if lang == 'de' else 'high'}" if _height(item) else ""
+    return f"{_name(item, lang)}: {KIND_WORDS[lang][item['kind']]}{high}, {_direction(m, bearing, lang)}"
 
 
 def _height(item, prefix=" "):

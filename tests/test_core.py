@@ -189,7 +189,7 @@ class CompanionTest(unittest.TestCase):
         self.restart(llm=model)
         self.send(type="location", **KASTELRUTH)
         self.run_for(9)
-        self.send(type="ask", text="How high is the Santner?")
+        self.send(type="ask", text="Is the Santner hard to climb?")
         self.assertEqual((self.brain.status["assistant"], self.brain.animator.playing), ("thinking", "thinking"))
         self.run_for(3)
         self.assertEqual(self.brain.status["assistant"], "thinking")  # the face keeps moving meanwhile
@@ -198,18 +198,29 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual((answer["text"], answer["lang"], answer["source"]),
                          ("The Santner is 2414 m high.", "en", "model"))
         chat, options = model.chats[0]
-        self.assertIn("We are in Kastelruth / Castelrotto.", chat[0]["content"])
-        self.assertEqual((chat[1]["content"], options["max_tokens"]), ("How high is the Santner?", 100))
+        self.assertIn("We are in Kastelruth / Castelrotto.", chat[1]["content"])
+        self.assertTrue(chat[1]["content"].endswith("Question: Is the Santner hard to climb?"))
+        self.assertEqual(options["max_tokens"], 60)
 
-    def test_a_new_question_replaces_one_still_thinking(self):
+    def test_the_model_warms_up_in_each_language(self):
+        model = FakeModel()
+        self.brain = Companion(self.dir / "config", lambda msg, to: None, images_dir=self.dir / "images",
+                               clock=lambda: self.now, echo=lambda line: None, llm=model, warm_up=True)
+        self.assertTrue(self.brain.asker.warmed_up.wait(2))
+        self.assertEqual([(options["slot"], options["max_tokens"], chat[0]["content"]) for chat, options in model.chats],
+                         [(0, 1, assistant.SYSTEM["en"]), (1, 1, assistant.SYSTEM["de"])])
+
+    def test_every_question_gets_its_answer(self):
         gate = threading.Event()
-        self.restart(llm=FakeModel("too late", gate=gate))
+        self.restart(llm=FakeModel("Once upon a time.", gate=gate))
         self.send(type="ask", text="Tell me a story")
-        self.send(type="ask", text="How fast are we going?")
+        self.send(type="ask", text="How fast are we going?")  # answered from the data meanwhile
+        self.assertEqual(self.brain.status["assistant"], "speaking")
         gate.set()
-        time.sleep(0.05)  # the model's late answer arrives ...
-        self.run_for(1)
-        self.assertEqual([m["text"] for m, _ in self.sent_of("answer")], ["We're standing still."])  # ... unused
+        self.answer()
+        self.run_for(15)
+        self.assertEqual([m["text"] for m, _ in self.sent_of("answer")], ["We're standing still.", "Once upon a time."])
+        self.assertEqual(self.brain.status["assistant"], "idle")
 
     def test_without_a_model_he_says_so(self):
         self.send(type="ask", text="Tell me a joke")
@@ -220,6 +231,15 @@ class CompanionTest(unittest.TestCase):
         answer = self.answer()
         self.assertEqual((answer["text"], answer["source"]), (assistant.NO_MODEL["de"], "none"))
         self.assertIn("AI model: no AI model at http://x/v1 (Name or service not known)", self.logs("warn"))
+
+    def test_he_knows_the_car_when_told(self):
+        self.send(type="ask", text="What car is it?")
+        self.assertEqual(self.answer()["text"], assistant.UNKNOWN["en"])  # no model here to say it does not know
+        settings = json.loads((CONFIG / "settings.json").read_text())
+        settings["assistant"] = {"car": "Subaru BRZ"}
+        self.send(type="config_set", name="settings", data=settings)
+        self.send(type="ask", text="Welches Auto ist das?")
+        self.assertEqual(self.answer()["text"], "Wir sitzen in einem Subaru BRZ.")
 
     def test_his_own_lines_wait_while_he_answers(self):
         self.send(type="sim_car", speed_kmh=50)

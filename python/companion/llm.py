@@ -32,8 +32,10 @@ class LlmClient:
         self.base_url = base_url.rstrip("/")
         self.model = model  # None: the first model the server lists
 
-    def chat(self, messages, max_tokens=120, temperature=0.3, timeout=60):
-        """The answer to a chat (a list of {"role", "content"}), as plain text."""
+    def chat(self, messages, max_tokens=120, temperature=0.3, timeout=60, slot=0):
+        """The answer to a chat (a list of {"role", "content"}), as plain text.
+        Chats that start the same way should use the same slot of the server: it
+        then skips what it already read for the previous one."""
         if self.model is None:
             self.model = self._request("/models", None, timeout)["data"][0]["id"]
         reply = self._request("/chat/completions", {
@@ -42,6 +44,8 @@ class LlmClient:
             "max_tokens": max_tokens,
             "temperature": temperature,
             "stream": False,
+            "id_slot": slot,
+            "cache_prompt": True,
             # Qwen models think aloud first unless told not to; on the board's CPU
             # that would take far longer than the answer itself.
             "chat_template_kwargs": {"enable_thinking": False},

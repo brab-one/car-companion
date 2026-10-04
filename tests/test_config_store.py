@@ -145,8 +145,9 @@ class ConfigStoreTest(unittest.TestCase):
 
     def test_assistant_settings_are_checked(self):
         _, errors = check("settings", {"assistant": {"wake_words": [], "languages": ["fr"], "nearby_km": 0,
-                                                     "llm_max_tokens": 2.5}})
+                                                     "llm_max_tokens": 2.5, "car": 86}})
         self.assertEqual(errors, [
+            "settings.json: assistant.car: expected text like \"Subaru BRZ\", got 86",
             'settings.json: assistant.wake_words: expected a list of phrases like ["hey buddy"], got []',
             'settings.json: assistant.languages: expected a list of "en" and "de", got ["fr"]',
             "settings.json: assistant.nearby_km: 0 is outside the allowed range 1 to 200",

@@ -129,15 +129,16 @@ class Animator:
             if self.awake:
                 self.next_idle = now + self._pick(idle["every_s"])
 
-    def play(self, what, now, idle=False):
-        """Play an animation by name, or a list of steps. Returns False if there is nothing to play."""
+    def play(self, what, now, idle=False, name=None):
+        """Play an animation by name, or a list of steps (shown as `name`, or "preview").
+        Returns False if there is nothing to play."""
         if not isinstance(what, (str, list)):
             return False
         anim = self.animations.get(what) if isinstance(what, str) else {"steps": what}
         steps = self._expand(anim, 0) if anim else []
         if not steps:
             return False
-        self.main = Track(what if isinstance(what, str) else "preview", steps,
+        self.main = Track(what if isinstance(what, str) else name or "preview", steps,
                           anim.get("keep", False), idle)
         self.main.step_end = now
         return True
