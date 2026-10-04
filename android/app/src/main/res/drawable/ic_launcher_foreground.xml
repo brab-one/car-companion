@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Two cyan eyes, as on his display. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#00E5FF" android:pathData="M36,38h12a5,5 0 0 1 5,5v22a5,5 0 0 1 -5,5h-12a5,5 0 0 1 -5,-5v-22a5,5 0 0 1 5,-5z" />
+    <path android:fillColor="#00E5FF" android:pathData="M60,38h12a5,5 0 0 1 5,5v22a5,5 0 0 1 -5,5h-12a5,5 0 0 1 -5,-5v-22a5,5 0 0 1 5,-5z" />
+</vector>

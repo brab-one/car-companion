@@ -1,0 +1,689 @@
+[
+ {
+  "name": "neutral",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 64,
+       "w": 36,
+       "h": 44,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 64,
+       "w": 36,
+       "h": 44,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "49783961d6a65675a1955077407bba3ddee063d4a8f1aa6aa1b11bb719b352fa"
+  ]
+ },
+ {
+  "name": "angry",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 64,
+       "w": 36,
+       "h": 18,
+       "r": 9,
+       "color": "#FF4D3A",
+       "slant": 6,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 64,
+       "w": 36,
+       "h": 18,
+       "r": 9,
+       "color": "#FF4D3A",
+       "slant": 6,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "acacb82211bd716f28d12c83d93a5026007b89a3d78fea757c5623dc02415d54"
+  ]
+ },
+ {
+  "name": "worried",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 41,
+       "y": 64,
+       "w": 32,
+       "h": 36,
+       "r": 12,
+       "color": "#FFC94D",
+       "slant": -12,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 87,
+       "y": 64,
+       "w": 32,
+       "h": 36,
+       "r": 12,
+       "color": "#FFC94D",
+       "slant": -12,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "f0bf6ad143a47277c27732f46d38f7370a47aa9bbf6085d46f0cb7d774546d07"
+  ]
+ },
+ {
+  "name": "surprised",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 36,
+       "y": 64,
+       "w": 42,
+       "h": 52,
+       "r": 21,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 92,
+       "y": 64,
+       "w": 42,
+       "h": 52,
+       "r": 21,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "047865295a18750336f79dcc10177675cba4f00ca3660a19d50bb5d12694951f"
+  ]
+ },
+ {
+  "name": "sleepy",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 64,
+       "w": 36,
+       "h": 10,
+       "r": 5,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 64,
+       "w": 36,
+       "h": 10,
+       "r": 5,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "f0845ecb17bc4f2689428f5dcc503267a85af2705a06e0c7a05ea55c2754f402"
+  ]
+ },
+ {
+  "name": "suspicious",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 64,
+       "w": 36,
+       "h": 18,
+       "r": 9,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 64,
+       "w": 36,
+       "h": 40,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "60110bbf76fa9a61d287e37879008af92b327d86baa1067ebb0a7cdfaeae4927"
+  ]
+ },
+ {
+  "name": "delighted",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 38,
+       "y": 64,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "right"
+      },
+      {
+       "x": 90,
+       "y": 64,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "0a4a52ea47a5de96c07bda33321e81cd3ce009ad00853639581c4bc699dece9a"
+  ]
+ },
+ {
+  "name": "wink",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 38,
+       "y": 64,
+       "w": 38,
+       "h": 6,
+       "r": 3,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 90,
+       "y": 64,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "e638db87872c2b10acf292cfcc1f5f722245e2e4f9eb3b0cef8f6eb1527e7410"
+  ]
+ },
+ {
+  "name": "android_auto_0",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 36,
+       "y": 64,
+       "w": 42,
+       "h": 52,
+       "r": 21,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 92,
+       "y": 64,
+       "w": 42,
+       "h": 52,
+       "r": 21,
+       "color": "#00E5FF",
+       "slant": 0,
+       "cut": 0,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "047865295a18750336f79dcc10177675cba4f00ca3660a19d50bb5d12694951f"
+  ]
+ },
+ {
+  "name": "android_auto_1",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 38,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "right"
+      },
+      {
+       "x": 90,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "9f4bed5dd709895800bee332aebf4fc7fd5464ac4e1a48dbc315b127029ecc5d"
+  ]
+ },
+ {
+  "name": "android_auto_2",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 32,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "right"
+      },
+      {
+       "x": 84,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "0197991895b78c1ceaa9a67707daf036a1a2d3f6ee874a4d280f2a7fb178c5b9"
+  ]
+ },
+ {
+  "name": "android_auto_3",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 43,
+       "y": 62,
+       "w": 38,
+       "h": 6,
+       "r": 3,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 95,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "572ea66db5c143f07fd61abe39ba0345ef1faa7e4574f63767733e81a780cf7d"
+  ]
+ },
+ {
+  "name": "android_auto_4",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 43,
+       "y": 62,
+       "w": 38,
+       "h": 6,
+       "r": 3,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 95,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "572ea66db5c143f07fd61abe39ba0345ef1faa7e4574f63767733e81a780cf7d"
+  ]
+ },
+ {
+  "name": "android_auto_5",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 43,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "right"
+      },
+      {
+       "x": 95,
+       "y": 62,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "603ccd07194f812c14f72efce42c613cc6988fee3950066fa43ce19594ae268f"
+  ]
+ },
+ {
+  "name": "visor_coming",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 38,
+       "y": 56,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "right"
+      },
+      {
+       "x": 90,
+       "y": 56,
+       "w": 38,
+       "h": 34,
+       "r": 10,
+       "color": "#FF7AD9",
+       "slant": 0,
+       "cut": 14,
+       "inner": "left"
+      }
+     ]
+    }
+   ]
+  },
+  "sha256": [
+   "abca3526cb5cceca4806f28f6ca446d82ffa424277311d462aa18593bb244083"
+  ]
+ },
+ {
+  "name": "visor_down",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 64,
+       "w": 36,
+       "h": 30,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 5,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 64,
+       "w": 36,
+       "h": 30,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 5,
+       "cut": 0,
+       "inner": "left"
+      }
+     ],
+     "visor": {
+      "x": 64,
+      "y": 62,
+      "w": 100,
+      "h": 44,
+      "r": 12,
+      "color": "#0B1E3A",
+      "alpha": 0.82,
+      "shine": "#9CC8FF",
+      "glint": 0.2
+     }
+    }
+   ]
+  },
+  "sha256": [
+   "ec48321512c4ba5f7b804b7d1e2ff94969bc3d7f4fa9e37661b7eb8b0e2acdfd"
+  ]
+ },
+ {
+  "name": "bubble",
+  "scene": {
+   "kind": "eyes",
+   "brightness": 1.0,
+   "displays": [
+    {
+     "shapes": [
+      {
+       "x": 39,
+       "y": 51,
+       "w": 36,
+       "h": 21,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 3,
+       "cut": 0,
+       "inner": "right"
+      },
+      {
+       "x": 89,
+       "y": 51,
+       "w": 36,
+       "h": 21,
+       "r": 10,
+       "color": "#00E5FF",
+       "slant": 3,
+       "cut": 0,
+       "inner": "left"
+      }
+     ],
+     "visor": {
+      "x": 64,
+      "y": 49,
+      "w": 100,
+      "h": 44,
+      "r": 12,
+      "color": "#0B1E3A",
+      "alpha": 0.82,
+      "shine": "#9CC8FF",
+      "glint": 0.2
+     }
+    }
+   ],
+   "bubble": {
+    "x": 64,
+    "y": 112,
+    "w": 118,
+    "h": 26,
+    "r": 5,
+    "color": "#FFFFFF",
+    "tail": [
+     64,
+     93
+    ],
+    "text": {
+     "x": 10,
+     "y": 104,
+     "w": 107,
+     "h": 16,
+     "bits": "+gAAAIYAIAAAQAccAAAiAAAAAgAAAABACKIAACLHAHGCAGHAHOAIpgAAIyiAiIIAIgACQAeqAAAiL4CIggAhwB5AALIAACIoAIiCACAgIkgBIgAAIicAcccAc8AeMAYcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYcAAAIAAAAACAAAAAACSIAAAAAAAAAIAAAAAAJIAALGHHAHLGgInLNAAYgAAyIgiACymAiCyqAACBgCIiD4B6KICp6CoAAIiAIiIoAIoogKooImAAcQAicccAeieAUegiYA="
+    }
+   }
+  },
+  "sha256": [
+   "e6577dd2a90d09c22e2fd808a96ee3b3e79f5e84428848db9c784ff642ced930"
+  ]
+ }
+]

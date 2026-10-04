@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The board's page has no TLS: it is reached on the local network (its own
+     Wi-Fi in the car, 10.0.0.1, or your network at home). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

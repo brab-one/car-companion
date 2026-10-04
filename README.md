@@ -345,13 +345,45 @@ lying still, 0.5 g and more when shaken. The log says "Modulino Movement:
 receiving data" when it works, and "not found on the Qwiic connector" when
 there is none.
 
+## The Android app
+
+`android/` is the phone app (Kotlin, Jetpack Compose, Android 8 and newer). It
+talks to the board's page with the same messages as the simulator
+(PROTOCOL.md, `"client": "android"`):
+
+- **Face**: his face, drawn pixel for pixel as on the display (a test checks
+  it against the page's renderer), what he is doing, the car's values, and
+  buttons to play his animations.
+- **Chat**: ask him, typed or with the phone's voice input; his answers can be
+  read aloud. "Navigate to ..." opens Google Maps' turn-by-turn navigation.
+- **Android Auto**: the same as Configure > Board: enable or disable, pair a
+  phone, what the bridge does, its settings.
+- **Settings**: where the board is (tried in turn): `10.0.0.1:7000` is its own
+  Wi-Fi in the car; add its address on your network for home. Sending the
+  phone's GPS position (also in the background, with a notification), reading
+  aloud, opening Google Maps.
+
+Build it (JDK 17 or newer and the Android SDK; Android Studio works too):
+
+```bash
+cd android && ./gradlew assembleDebug    # app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+On an emulator, the board can be reached through this PC's port 7001 (set up
+by `tools/deploy.sh`): `adb shell am start -n
+io.github.deadeyebarb.carcompanion/.MainActivity -e board 10.0.2.2:7001`.
+
 ## Tests
 
 ```bash
 python3 -m unittest
+cd android && ./gradlew testDebugUnitTest
 ```
 
 The logic in `python/companion/` has no Arduino imports, so the tests run on any PC.
+The app's tests check its face renderer against the page's, with scenes from
+the companion (`tools/android_test_scenes.py` makes them; it needs node).
 
 ## How it fits together
 
@@ -375,6 +407,9 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 | `tools/` | `run_pc.py`, `deploy.sh`, `make_placeholders.py`, and the PC stand-in for Arduino's `arduino.js`. |
 | `docs/` | Pictures for this README. Not copied to the board. |
 | `tests/` | Unit tests for the logic. |
+| `android/` | The phone app. |
+| `android_auto/` | The wireless Android Auto bridge (its own container on the board). |
+| `board/` | Services and scripts the board runs outside the app. |
 | `PROTOCOL.md` | Every message between app and companion, the scene format and the Bridge calls. |
 
 ## Config files
