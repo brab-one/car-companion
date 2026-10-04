@@ -45,8 +45,16 @@ Bridge.provide("motion_sensor", on_motion_sensor)
 #  - Renderers on the sketch (LED matrix, OLED): forward each scene over Bridge.
 
 
+face_up = False
+
+
 def loop():
+    global face_up
     brain.tick()
+    if not face_up:  # the first scene just went out: how long did the start take?
+        face_up = True
+        with open("/proc/uptime") as f:
+            brain.log("info", f"face up {float(f.read().split()[0]):.1f} s after Linux started", "board")
     time.sleep(1 / brain.fps)
 
 

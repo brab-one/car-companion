@@ -1,0 +1,16 @@
+# Starts the sketch on the microcontroller at boot, without App Lab compiling it
+# and checking the flash first (release_sketch.cfg). The router must run first:
+# the sketch talks to it at once. tools/fast_start.sh installs it.
+
+[Unit]
+Description=Car Companion sketch, started without reflashing
+Requires=arduino-router.service
+After=arduino-router.service
+
+[Service]
+Type=oneshot
+User=arduino
+ExecStart=/bin/sh -c 'exec $$(ls /home/arduino/.arduino15/packages/arduino/tools/remoteocd/*/remoteocd | tail -n 1) upload --quite -f /usr/local/lib/car-companion/release_sketch.cfg /usr/local/lib/car-companion/release_sketch.cfg'
+
+[Install]
+WantedBy=multi-user.target

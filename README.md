@@ -259,6 +259,35 @@ which the Board tab shows. `--remove` takes it off again. Above 1.42 GHz the UNO
 Q uses boost frequencies: the AI model gets faster, the board warmer, and it
 needs a strong USB-C supply.
 
+### Fast start
+
+With App Lab starting the app, the face is up about a minute after power-on:
+at every boot App Lab compiles the sketch and checks the microcontroller's
+flash before it starts anything. Two things make it much faster:
+
+```bash
+python3 tools/boot_eyes.py   # his eyes as the microcontroller's boot animation
+tools/fast_start.sh          # start the app at boot without App Lab (asks for the board's password)
+```
+
+- **Eyes from power-on.** The microcontroller is up in half a second and plays
+  a boot animation until Linux is ready, then runs the sketch, which shows the
+  same eyes. `boot_eyes.py` makes that animation his eyes. It writes only the
+  boot animation's own area of the flash, never the sketch; `--arduino` brings
+  Arduino's animation back.
+- **The app without App Lab.** `fast_start.sh` installs two small services in
+  place of App Lab's default app: `board/car-companion-sketch.service` starts the
+  sketch (only App Lab's last flashing step: a reset and the go-ahead the sketch
+  waits for), `board/car-companion-start.service` the app's containers as App Lab
+  set them up at the last deploy. Deploy once before installing;
+  `tools/deploy.sh` works as before. `--undo` gives the start back to App Lab.
+
+Measured on the board, in seconds after Linux starts (the firmware takes 6 s
+before that): the face is on the page after 29 instead of 54, and the sketch
+runs after 17 instead of about 30. The boot animation's eyes show from power-on
+either way. The app's log says it at every start: "face up 28.7 s after Linux
+started".
+
 ### Modulino Movement
 
 Plug a Modulino Movement into the board's Qwiic connector. The sketch
@@ -293,7 +322,7 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 | `assets/clips/` | Clips and places' videos: frames of 128 × 128 under each other in one tall PNG. |
 | `python/main.py` | Board glue: WebUI and Bridge, connected to the Companion. |
 | `python/companion/` | The logic, plain Python. `core.py` is the place to start. |
-| `sketch/` | The microcontroller: reads the Modulino Movement; later the LED matrix and OLED. |
+| `sketch/` | The microcontroller: resting eyes on the LED matrix, reads the Modulino Movement; later the app's scenes on the LED matrix and OLED. |
 | `assets/` | The simulator page, served by the board or by `run_pc.py`. |
 | `tools/` | `run_pc.py`, `deploy.sh`, `make_placeholders.py`, and the PC stand-in for Arduino's `arduino.js`. |
 | `docs/` | Pictures for this README. Not copied to the board. |

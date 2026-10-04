@@ -1,0 +1,24 @@
+# Starts the app at boot from the containers App Lab set up the last time it
+# started it (tools/deploy.sh), without App Lab first compiling the sketch and
+# checking the microcontroller's flash: about 20 s on every boot. The sketch is
+# started by car-companion-sketch.service. tools/fast_start.sh installs both.
+
+[Unit]
+Description=Car Companion app, started without reflashing the sketch
+Requires=docker.service
+# The app's container mounts the arduino user's PipeWire socket (sound), which
+# that user's session creates; it runs from boot because fast_start.sh turns on
+# lingering for the user.
+After=docker.service arduino-router.service user@1000.service
+ConditionPathExists=/home/arduino/ArduinoApps/car-companion/.cache/app-compose.yaml
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=arduino
+WorkingDirectory=/home/arduino/ArduinoApps/car-companion/.cache
+ExecStartPre=/bin/sh -c 'for i in $$(seq 50); do [ -S /run/user/1000/pipewire-0 ] && exit 0; sleep 0.2; done'
+ExecStart=/usr/bin/docker compose -p car-companion -f app-compose.yaml -f app-compose-overrides.yaml up -d --no-build --pull never
+
+[Install]
+WantedBy=multi-user.target
