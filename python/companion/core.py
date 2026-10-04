@@ -420,6 +420,13 @@ class Companion:
             self.send({"type": "answer", "question": question, "text": text, "lang": lang, "source": "none"})
             return
         facts = self._facts()
+        route = assistant.navigation(question, lang, facts)
+        if route:  # the phone app starts Google Maps (the web page offers a link until then)
+            destination, answer = route
+            self.send({"type": "navigate", **destination})
+            self.log("info", f"navigate to {destination['name']}", "assistant")
+            self._answer(question, answer, lang, "data", now)
+            return
         answer = assistant.direct_answer(question, lang, facts)
         if answer:
             self._answer(question, answer, lang, "data", now)

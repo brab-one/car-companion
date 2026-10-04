@@ -90,6 +90,32 @@ class DirectAnswerTest(unittest.TestCase):
             self.assertIsNone(self.ask(question), question)
 
 
+class NavigationTest(unittest.TestCase):
+    def nav(self, question):
+        return assistant.navigation(question, detect_language(question), facts())
+
+    def test_places_he_knows_go_by_their_coordinates(self):
+        dest, answer = self.nav("Navigate to Bozen")
+        self.assertEqual((dest["name"], dest["lat"], dest["lon"], answer),
+                         ("Bozen", 46.498, 11.354, "Starting navigation to Bozen on your phone."))
+        self.assertIn("destination=46.498%2C11.354&travelmode=driving&dir_action=navigate", dest["url"])
+        dest, answer = self.nav("Fahr mich zur nächsten Tankstelle")
+        self.assertEqual((dest["name"], answer), ("Eni", "Ich starte die Navigation auf deinem Handy: Eni."))
+
+    def test_other_places_go_to_google_maps_by_name(self):
+        dest, answer = self.nav("Take me to Munich airport please")
+        self.assertEqual((dest, answer), ({"name": "Munich airport", "query": "Munich airport",
+                                           "url": "https://www.google.com/maps/dir/?api=1&destination=Munich+airport"
+                                                  "&travelmode=driving&dir_action=navigate"},
+                                          "Starting navigation to Munich airport on your phone."))
+        self.assertEqual(self.nav("Bring mich nach Hause")[0]["query"], "Home")  # as saved in Google Maps
+        self.assertEqual(self.nav("Take me home")[1], "Starting navigation home on your phone.")
+
+    def test_other_questions_are_not_navigation(self):
+        for question in ("How far is Bozen?", "What is the speed limit?", "Where are we?"):
+            self.assertIsNone(self.nav(question), question)
+
+
 class FactsTest(unittest.TestCase):
     def test_the_model_hears_only_what_the_question_is_about(self):
         self.assertEqual(facts_text(facts(), "de", "Wie weit ist es nach Bozen?"),

@@ -102,6 +102,7 @@ label.check { display: flex; align-items: center; gap: 8px; color: var(--text); 
 .msg.him { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
 .msg.waiting { color: var(--muted); font-style: italic; }
 .msg .meta { margin-top: 4px; font-size: 11px; opacity: 0.7; }
+.msg a { display: inline-block; margin-top: 6px; color: var(--accent); font-weight: 600; }
 .board-info { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 6px; font-size: 14px; }
 .board-info dt { color: var(--muted); }
 .board-info dd { margin: 0; font-variant-numeric: tabular-nums; }

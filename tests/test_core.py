@@ -208,8 +208,8 @@ class CompanionTest(unittest.TestCase):
         self.brain = Companion(self.dir / "config", lambda msg, to: None, images_dir=self.dir / "images",
                                clock=lambda: self.now, echo=lambda line: None, llm=model, warm_up=True)
         self.assertTrue(self.brain.asker.warmed_up.wait(2))
-        self.assertEqual([(options["slot"], options["max_tokens"], chat[0]["content"]) for chat, options in model.chats],
-                         [(0, 1, assistant.SYSTEM["en"]), (1, 1, assistant.SYSTEM["de"])])
+        warm_ups = [(options["slot"], options["max_tokens"], chat[0]["content"]) for chat, options in model.chats]
+        self.assertEqual(warm_ups, [(0, 1, assistant.SYSTEM["en"]), (1, 1, assistant.SYSTEM["de"])])
 
     def test_every_question_gets_its_answer(self):
         gate = threading.Event()
@@ -232,6 +232,12 @@ class CompanionTest(unittest.TestCase):
         answer = self.answer()
         self.assertEqual((answer["text"], answer["source"]), (assistant.NO_MODEL["de"], "none"))
         self.assertIn("AI model: no AI model at http://x/v1 (Name or service not known)", self.logs("warn"))
+
+    def test_navigation_goes_to_the_phone(self):
+        self.send(type="ask", text="Navigate to Kastelruth")
+        ((nav, to),) = self.sent_of("navigate")
+        self.assertEqual((nav["name"], nav["lat"], nav["lon"], to), ("Kastelruth", 46.567, 11.567, None))
+        self.assertEqual(self.answer()["text"], "Starting navigation to Kastelruth on your phone.")
 
     def test_he_knows_the_car_when_told(self):
         self.send(type="ask", text="What car is it?")

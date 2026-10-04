@@ -55,6 +55,17 @@ export class ChatPanel {
     }
   }
 
+  // He started navigation: the phone app will open Google Maps; until it exists, a link does.
+  setNavigation(m) {
+    const item = this.#add('him', `Route to ${m.name}`);
+    const link = document.createElement('a');
+    link.href = m.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'Open in Google Maps';
+    item.append(link);
+  }
+
   #add(kind, text, meta) {
     this.list.querySelector('.hint')?.remove(); // the examples, until the first message
     const item = document.createElement('div');

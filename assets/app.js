@@ -98,6 +98,9 @@ const handlers = {
   answer(m) {
     chat.setAnswer(m);
   },
+  navigate(m) {
+    chat.setNavigation(m);
+  },
   log(m) {
     log.add(m);
   },

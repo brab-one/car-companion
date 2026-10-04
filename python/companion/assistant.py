@@ -12,6 +12,7 @@ import re
 import threading
 import time
 import unicodedata
+import urllib.parse
 
 from .geofence import distance_m
 from .poi import SETTLEMENTS, bearing_deg
@@ -65,11 +66,12 @@ COMPASS = {
 _WORDS = {
     "en": set("i we you is are how where what why when which who not yet the and or there here near far hot "
               "cold engine oil please thanks show tell me us my our it's what's nearest fuel gas station "
-              "petrol speed revs coolant mountain peak lake castle town village weather".split()),
+              "petrol speed revs coolant mountain peak lake castle town village weather navigate take drive "
+              "directions to".split()),
     "de": set("ich wir du ist sind bin wie wo warum wann welche welcher welches wer nicht noch schon der die "
               "das den dem ein eine einen und oder gibt es hier nah weit heiss kalt motor bitte danke zeig "
               "sag mir mich uns tankstelle tanken drehzahl geschwindigkeit berg gipfel see burg dorf stadt "
-              "wetter".split()),
+              "wetter navigiere fahr fahre bring bringe nach zum zur hause".split()),
 }
 
 # "Which mountain is that?": the peaks within this distance that look biggest
@@ -154,17 +156,72 @@ class Facts:
         q = f" {_plain(question)} "
         return [hit for hit in self._all() if any(f" {part} " in q for part in _name_parts(hit[0]))][:limit]
 
+    def find(self, text, limit=1):
+        """Places and points of interest the text names, the nearest first when the
+        position is known; for navigation, which needs no position."""
+        if self.location:
+            return [hit[0] for hit in self.named(text, limit)]
+        q = f" {_plain(text)} "
+        return [item for item in self._items() if any(f" {part} " in q for part in _name_parts(item))][:limit]
+
+    def _items(self):
+        return [{"name": p["name"], "kind": "place", "lat": p["lat"], "lon": p["lon"]} for p in self.places] \
+            + list(self.pois)
+
     def _all(self):
         if self._measured is None:
             self._measured = []
             if self.location:
                 lat, lon = self.location["lat"], self.location["lon"]
-                items = [{"name": p["name"], "kind": "place", "lat": p["lat"], "lon": p["lon"]}
-                         for p in self.places]
                 self._measured = sorted(((item, distance_m(lat, lon, item["lat"], item["lon"]),
                                           bearing_deg(lat, lon, item["lat"], item["lon"]))
-                                         for item in items + list(self.pois)), key=lambda hit: hit[1])
+                                         for item in self._items()), key=lambda hit: hit[1])
         return self._measured
+
+
+# "Navigate to Bozen", "Fahr mich zur nächsten Tankstelle": the words after these are the destination.
+NAVIGATE = re.compile(
+    r"\b(?:navigate|navigation|directions|route|take|drive|bring|guide|get|go)\s+(?:me\s+|us\s+)?(?:to|towards)\s+"
+    r"(?P<en>.+)"
+    r"|\b(?:navigier\w*|navigation|fahr\w*|bring\w*|führ\w*|route|wie komme ich|lass uns)\s+(?:mich\s+|uns\s+)?"
+    r"(?:nach|zu|zum|zur|in die|ins|in den|an den|auf den)\s+(?P<de>.+)"
+    r"|\b(?:navigate|take|drive|bring|get|go)\s+(?:me\s+|us\s+)?(?P<home>home)\b", re.IGNORECASE)
+NEAREST = [(("fuel",), r"\bfuel|\bgas\b|petrol|tankstelle|tanken", {"en": "gas station", "de": "Tankstelle"}),
+           (("charging",), r"charg|ladestation|\blade", {"en": "charging station", "de": "Ladestation"})]
+HOME = r"^(home|my home|hause|zuhause|daheim)$"
+
+
+def navigation(question, lang, facts):
+    """For "navigate to ...": (destination, answer), where destination is what the
+    `navigate` message carries (PROTOCOL.md); None for any other question."""
+    m = NAVIGATE.search(question)
+    if not m:
+        return None
+    wanted = re.sub(r"^(the|der|die|das|dem|den)\s+|[\s.!?]+$|\s+(please|bitte)$", "",
+                    (m["en"] or m["de"] or m["home"]).strip(), flags=re.IGNORECASE)
+    plain = _plain(wanted).strip()
+    dest = None
+    for kinds, words, query in NEAREST:  # the nearest one, if he knows it; Maps finds one otherwise
+        if re.search(words, plain):
+            near = facts.around(kinds, limit=1, max_km=60)
+            dest = _destination(near[0][0], lang) if near else {"name": query[lang], "query": query[lang]}
+    if dest is None and re.search(HOME, plain):
+        dest = {"name": "Zuhause" if lang == "de" else "home", "query": "Home"}  # Home as saved in Google Maps
+    if dest is None:
+        found = facts.find(wanted)  # by the name you used for it, where he knows it
+        dest = {**_destination(found[0], lang), "name": wanted} if found else {"name": wanted, "query": wanted}
+    target = f"{dest['lat']},{dest['lon']}" if "lat" in dest else dest["query"]
+    dest["url"] = "https://www.google.com/maps/dir/?api=1&" + urllib.parse.urlencode(
+        {"destination": target, "travelmode": "driving", "dir_action": "navigate"})
+    name = dest["name"]
+    if lang == "de":  # no "nach", "zu", "zum": which one fits depends on the place
+        return dest, f"Ich starte die Navigation auf deinem Handy: {name}."
+    return dest, "Starting navigation home on your phone." if dest.get("query") == "Home" else \
+        f"Starting navigation to {name} on your phone."
+
+
+def _destination(item, lang):
+    return {"name": _name(item, lang), "lat": item["lat"], "lon": item["lon"]}
 
 
 def direct_answer(question, lang, facts):
