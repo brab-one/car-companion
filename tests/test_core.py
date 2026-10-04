@@ -50,14 +50,14 @@ class CompanionTest(unittest.TestCase):
                                echo=lambda line: None, llm=llm)
         self.brain.tick()  # the simulated ignition starts on, so he wakes up
 
-    def answer(self):
-        """His latest answer; the AI model's comes from another thread."""
+    def answer(self, count=1):
+        """His latest answer, once there are `count`; the AI model's come from another thread."""
         for _ in range(500):
-            if self.sent_of("answer"):
+            if len(self.sent_of("answer")) >= count:
                 return self.sent_of("answer")[-1][0]
             time.sleep(0.002)
             self.run_for(0.05)
-        self.fail("no answer")
+        self.fail(f"fewer than {count} answers")
 
     def run_for(self, seconds, dt=0.05):
         end = self.now + seconds
@@ -217,7 +217,7 @@ class CompanionTest(unittest.TestCase):
         self.send(type="ask", text="How fast are we going?")  # answered from the data meanwhile
         self.assertEqual(self.brain.status["assistant"], "speaking")
         gate.set()
-        self.answer()
+        self.answer(count=2)
         self.run_for(15)
         self.assertEqual([m["text"] for m, _ in self.sent_of("answer")], ["We're standing still.", "Once upon a time."])
         self.assertEqual(self.brain.status["assistant"], "idle")
