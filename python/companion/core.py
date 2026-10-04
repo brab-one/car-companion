@@ -86,6 +86,9 @@ class Companion:
         self._next_poll = now + CONFIG_POLL_S
         self._next_car = now
         self._car_sent = None
+        self.android_auto = False  # the phone's Android Auto is up (android_auto/bridge.py, or the simulator)
+        self._aa_status = None     # (what the Android Auto bridge last reported, when)
+        self._aa_pair = queue.Queue()  # "Pair a phone" clicks, until the bridge comes for them
         self._had_sensor = False
         self._sensor_report = None   # what the sketch last said about the Modulino
         self._missing_logged = False
@@ -183,6 +186,7 @@ class Companion:
             "motion_g": self.motion.value(now),
             "place": self.geo.current,
             "running_s": now - self._ignition_on_at,
+            "android_auto": self.android_auto,
         }
 
     def _wake(self, now):
@@ -454,7 +458,36 @@ class Companion:
 
     def on_board_info(self, msg, client):
         """The Board tab asks every few seconds while it is open."""
-        self.send({"type": "board", **board.info(self.config_dir, on_board=self.on_board)}, to=client)
+        aa = None
+        if self._aa_status:
+            status, at = self._aa_status
+            aa = {**status, "age_s": round(self._clock() - at, 1)}
+        self.send({"type": "board", **board.info(self.config_dir, on_board=self.on_board), "android_auto": aa},
+                  to=client)
+
+    def on_android_auto_status(self, msg, client):
+        """The Android Auto bridge reports what it does, every 2 s (main.py)."""
+        self._aa_status = (msg.get("status") or {}, self._clock())
+
+    def on_android_auto_pair(self, msg, client):
+        """Configure > Board, "Pair a phone": the bridge opens pairing at its next report."""
+        self._aa_pair.put(True)
+        self.log("info", "pairing requested", "android auto")
+
+    def take_android_auto_pair(self):
+        """For the bridge's report (main.py, any thread): was "Pair a phone" clicked since?"""
+        clicked = False
+        while not self._aa_pair.empty():
+            clicked = self._aa_pair.get_nowait()
+        return clicked
+
+    def on_android_auto(self, msg, client):
+        """The Android Auto bridge (or the simulator) says whether the phone's Android
+        Auto is connected; rules.json reacts to it."""
+        connected = bool(msg.get("connected"))
+        if connected != self.android_auto:
+            self.android_auto = connected
+            self.log("info", "connected" if connected else "disconnected", "android auto")
 
     def on_sim_car(self, msg, client):
         self.car.set({k: v for k, v in msg.items() if k != "type"})
@@ -482,6 +515,9 @@ class Companion:
         "ask": on_ask,
         "voice": on_voice,
         "board_info": on_board_info,
+        "android_auto": on_android_auto,
+        "android_auto_status": on_android_auto_status,
+        "android_auto_pair": on_android_auto_pair,
         "sim_car": on_sim_car,
         "sim_scenario": on_sim_scenario,
         "sim_motion": on_sim_motion,
@@ -538,7 +574,8 @@ class Companion:
         if now >= self._next_car:
             self._next_car = now + CAR_SEND_S
             car = {**self.car.state, "scenario": self.car.scenario,
-                   "motion_g": self.motion.value(now), "sensor": self.motion.has_sensor(now)}
+                   "motion_g": self.motion.value(now), "sensor": self.motion.has_sensor(now),
+                   "android_auto": self.android_auto}
             if car != self._car_sent:
                 self._car_sent = car
                 self.send({"type": "car", **car})

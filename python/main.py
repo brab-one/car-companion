@@ -40,6 +40,24 @@ def on_motion_sensor(found: bool):
 Bridge.provide("accel", on_accel)
 Bridge.provide("motion_sensor", on_motion_sensor)
 
+
+def on_android_auto(connected: bool):
+    """The Android Auto bridge in its own container (android_auto/bridge.py) says
+    whether the phone's Android Auto is connected: POST /android_auto?connected=true"""
+    brain.receive({"type": "android_auto", "connected": connected})
+    return {"ok": True}
+
+
+def on_android_auto_status(status: dict):
+    """The bridge reports what it does every 2 s (POST /android_auto/status with JSON),
+    for Configure > Board; the answer says whether to open pairing for a phone."""
+    brain.receive({"type": "android_auto_status", "status": status})
+    return {"pair": brain.take_android_auto_pair()}
+
+
+ui.expose_api("POST", "/android_auto", on_android_auto)
+ui.expose_api("POST", "/android_auto/status", on_android_auto_status)
+
 # Plug-in points for later steps:
 #  - BLE link to the phone: pass its messages to brain.receive() and add it to send().
 #  - Renderers on the sketch (LED matrix, OLED): forward each scene over Bridge.

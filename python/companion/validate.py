@@ -355,6 +355,7 @@ def _check_settings(data, errors):
     _number(data["place_exit_margin"], "place_exit_margin", errors, 0, 2)
     _timezone(data["timezone"], errors)
     _assistant(data["assistant"], spec["assistant"], errors)
+    _android_auto(data["android_auto"], spec["android_auto"], errors)
     if _object(data["thresholds"], "thresholds", errors):
         for key, value in data["thresholds"].items():  # any names: rules use them as $name
             if not re.fullmatch(r"[a-z0-9_]+", key):
@@ -380,6 +381,35 @@ def _assistant(a, spec, errors):
     _range(a["llm_max_tokens"], "assistant.llm_max_tokens", errors, 16, 1024, whole=True)
     _number(a["llm_temperature"], "assistant.llm_temperature", errors, 0, 2)
     _number(a["llm_timeout_s"], "assistant.llm_timeout_s", errors, 5, 600)
+
+
+CHANNELS = {"2.4": range(1, 14), "5": (36, 40, 44, 48)}  # 5 GHz: the ones without radar checks
+
+
+def _android_auto(aa, spec, errors):
+    if not _object(aa, "android_auto", errors):
+        return
+    _known_keys(aa, spec, "android_auto", errors)
+    for key in ("enabled", "keep_wifi"):
+        if not isinstance(aa[key], bool):
+            errors.append(f"android_auto.{key}: expected true or false, got {_show(aa[key])}")
+    name = aa["wifi_name"]
+    if not (isinstance(name, str) and len(name.encode()) <= 32 and name == name.strip()):
+        errors.append(f"android_auto.wifi_name: expected a name of at most 32 bytes, or \"\", got {_show(name)}")
+    key = aa["wifi_password"]
+    if not (isinstance(key, str) and (key == "" or (8 <= len(key) <= 63 and key.isascii() and key.isprintable()))):
+        errors.append("android_auto.wifi_password: expected 8 to 63 letters, digits or signs, or \"\"")
+    band = aa["wifi_band"]
+    if band not in CHANNELS:
+        errors.append(f'android_auto.wifi_band: expected "2.4" or "5", got {_show(band)}')
+    channel = aa["wifi_channel"]
+    if type(channel) is not int or (channel != 0 and channel not in CHANNELS.get(band, ())):
+        allowed = "1 to 13" if band == "2.4" else "36, 40, 44 or 48"
+        errors.append(f"android_auto.wifi_channel: expected 0 (automatic) or {allowed}, got {_show(channel)}")
+    country = aa["country"]
+    if not (isinstance(country, str) and re.fullmatch(r"([A-Z]{2})?", country)):
+        errors.append(f'android_auto.country: expected two capital letters like "IT", or "", got {_show(country)}')
+    _number(aa["pairing_min"], "android_auto.pairing_min", errors, 1, 30)
 
 
 def _timezone(tz, errors):

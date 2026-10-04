@@ -288,6 +288,54 @@ runs after 17 instead of about 30. The boot animation's eyes show from power-on
 either way. The app's log says it at every start: "face up 28.7 s after Linux
 started".
 
+### Wireless Android Auto (in progress)
+
+For cars with Android Auto over a USB cable, the board is to become the
+wireless adapter in between: the phone connects to the board over Bluetooth and
+Wi-Fi, the board to the car's USB port. It runs in its own container beside the
+app (`android_auto/`), with Bluetooth (BlueZ) and Wi-Fi (NetworkManager) reached
+through the system D-Bus; the flow follows
+[WirelessAndroidAutoDongle](https://github.com/nisargjhaveri/WirelessAndroidAutoDongle).
+
+Phase 1 is the phone side: the board offers the Android Auto service over
+Bluetooth, tells a paired phone which Wi-Fi to join, runs that Wi-Fi as an
+access point and waits for the phone's Android Auto connection. Tested on the
+board so far, not yet with a phone. Phase 2, passing that on to the
+car over USB, is still to do: the board's kernel lacks the USB function that
+dongle project patches in, so it is to be done in user space (FunctionFS).
+
+```bash
+tools/android_auto.sh          # copy and start it once, then follow its log
+tools/android_auto.sh --stop   # stop it, also at boot
+```
+
+From then on it starts with the board and works while Android Auto is enabled:
+Configure > Board > Wireless Android Auto, **Enable Android Auto** (saved as
+`android_auto.enabled` in `settings.json`; the phone app will switch the same
+setting). The bridge follows within 2 seconds. Enabled, the board runs a Wi-Fi
+access point for your phone on a second, virtual interface and stays on your
+network meanwhile (**Stay on your Wi-Fi meanwhile**, `keep_wifi`; without it the
+access point takes the board's Wi-Fi), and a phone can pair with the board for a
+few minutes, again after **Pair a phone**. Disabled, the access point and its profile are gone, the board
+is neither visible nor pairable over Bluetooth, and the phones it called are
+hung up on. The tab also shows what the bridge does: the Wi-Fi's name and
+password, whether your phone is connected, how long pairing is open, the paired
+phones. Pair with Wireless Android Auto on in the phone's Android Auto settings.
+
+The other settings there (`android_auto` in `settings.json`): the Wi-Fi's name
+and password (made up on the board when empty), band and channel, the country
+whose Wi-Fi rules apply, and how long pairing stays open. The access point runs
+on 2.4 GHz: the UNO Q's Wi-Fi chip may only listen on 5 GHz ("No IR"), whatever
+the country, as its kernel ignores countries set by hand. Your network can be on
+5 GHz meanwhile; on 2.4 GHz the access point takes its channel, so the chip does
+not hop between two. Automatic channel: your network's on 2.4 GHz, else 6.
+
+When the phone's Android Auto connects, the bridge tells the app
+(`POST /android_auto?connected=true` on its page's port) and he shows it: the
+rule `android_auto` in `rules.json` plays the animation of that name and says
+"Yay, Android Auto is connected!". In the simulator, the Car panel's "Android Auto
+connected" switch does the same.
+
 ### Modulino Movement
 
 Plug a Modulino Movement into the board's Qwiic connector. The sketch
@@ -429,7 +477,8 @@ For anything else, write the rule by hand (or under Configure, Files):
 Signals: `ignition`, `speed_kmh`, `rpm`, `oil_c`, `coolant_c`, `g_long`
 (braking is negative), `g_lat` (left turn is negative), `motion_g`
 (Modulino Movement), `place` (id of the place you are in), `running_s`
-(seconds since the ignition went on). **The order is the priority**: when
+(seconds since the ignition went on), `android_auto` (true while the phone's
+Android Auto is connected, see "Wireless Android Auto"). **The order is the priority**: when
 several active rules have a mood, the first one in the file wins. That is why
 the warnings come first, then speed, then the Modulino.
 
@@ -491,6 +540,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 | `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |
 | `timezone` | For his answers, e.g. `"Europe/Rome"`; `""` is the board's own clock (UTC). |
 | `thresholds` | Numbers the rules use as `$name`. Add your own. |
+| `android_auto` | Wireless Android Auto through the board (see "Wireless Android Auto"): `enabled` (off by default; while on, the board runs an access point for your phone); `keep_wifi` (on by default: the board stays on your Wi-Fi meanwhile, the access point gets a second, virtual interface); the access point's `wifi_name` and `wifi_password` (`""`: made up on the board; a password has 8 to 63 characters), `wifi_band` (`"2.4"` or `"5"`), `wifi_channel` (0: automatic; 1 to 13, or 36, 40, 44, 48), `country` (two letters like `"IT"`, for its Wi-Fi rules; `""` the board's); `pairing_min`, how long a phone can pair. |
 | `assistant` | Questions: `enabled`; `car` (its make and model, e.g. `"Subaru BRZ"`); `wake_words` (any phrases, e.g. `["hey buddy", "hallo kumpel"]`); `languages` (`"en"`, `"de"`; the first when unsure); `nearby_km` (how far around he looks); `llm_max_tokens`, `llm_temperature`, `llm_timeout_s` for the AI model. |
 
 ## Where the next parts plug in

@@ -175,6 +175,7 @@ dialog::backdrop { background: rgb(0 0 0 / 60%); }
 .place-form { display: grid; gap: 10px; }
 .place-form h3 { margin: 0; }
 .place-form label { display: grid; gap: 4px; }
+.place-form > label.check { display: flex; }  /* a checkbox on its own line, e.g. Board > Android Auto */
 .place-form .row { margin: 0; align-items: end; }
 .picture { display: flex; gap: 16px; align-items: flex-start; }
 #photo-preview, #clip-preview { width: 256px; height: 256px; image-rendering: pixelated; background: #000; border-radius: 6px; }

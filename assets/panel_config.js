@@ -78,9 +78,18 @@ export class ConfigPanel {
   #request(msg, replyType) {
     const key = `${replyType}:${msg.name}`;
     return new Promise((resolve, reject) => {
-      this.waiting.set(key, resolve);
+      const waiter = (reply) => {
+        clearTimeout(timer);
+        resolve(reply);
+      };
+      // Only its own waiter: a later request with the same key (the Board tab asks
+      // every 2 s) must not lose its answer to this one's timeout.
+      const timer = setTimeout(() => {
+        if (this.waiting.get(key) === waiter) this.waiting.delete(key);
+        reject(new Error('no answer from the companion'));
+      }, REPLY_TIMEOUT_MS);
+      this.waiting.set(key, waiter);
       this.send(msg);
-      setTimeout(() => this.waiting.delete(key) && reject(new Error('no answer from the companion')), REPLY_TIMEOUT_MS);
     });
   }
 

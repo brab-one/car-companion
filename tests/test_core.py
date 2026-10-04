@@ -312,6 +312,33 @@ class CompanionTest(unittest.TestCase):
         self.run_for(5)  # no more samples: sensor gone, rule off after hold_s
         self.assertEqual(self.brain.status["mood"], "neutral")
 
+    def test_android_auto_connecting_plays_its_animation_and_says_so(self):
+        self.run_for(9)  # past the line he says at the start (say_gap_s)
+        self.send(type="android_auto", connected=True)
+        self.assertEqual(self.brain.animator.playing, "android_auto")
+        self.assertIn("Yay, Android Auto is connected!", self.said())
+        self.assertIn("connected", self.logs())
+        self.run_for(0.3)
+        self.assertTrue(self.sent_of("car")[-1][0]["android_auto"])  # the simulator's switch shows it
+        self.send(type="android_auto", connected=False)
+        self.run_for(0.3)
+        self.assertFalse(self.sent_of("car")[-1][0]["android_auto"])
+        self.assertNotIn("android_auto", self.brain.status["rules"])
+
+    def test_the_board_tab_sees_the_android_auto_bridge_and_can_ask_it_to_pair(self):
+        self.send(type="board_info")
+        self.assertIsNone(self.sent_of("board")[-1][0]["android_auto"])  # no bridge has reported
+        self.assertFalse(self.brain.take_android_auto_pair())
+        self.send(type="android_auto_status", status={"state": "on", "wifi_name": "CarCompanion-3BEF"})
+        self.run_for(1.5)
+        self.send(type="board_info")
+        aa = self.sent_of("board")[-1][0]["android_auto"]
+        self.assertEqual((aa["state"], aa["wifi_name"], aa["age_s"]), ("on", "CarCompanion-3BEF", 1.5))
+        self.send(type="android_auto_pair")
+        self.send(type="android_auto_pair")
+        self.assertTrue(self.brain.take_android_auto_pair())   # the bridge's next report takes it
+        self.assertFalse(self.brain.take_android_auto_pair())  # once
+
     def test_shake_button_beats_standing_still(self):
         self.send(type="sim_car", speed_kmh=0)
         self.run_for(1)

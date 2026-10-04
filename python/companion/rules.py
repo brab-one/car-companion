@@ -17,7 +17,7 @@ import operator
 import re
 
 SIGNALS = ("ignition", "speed_kmh", "rpm", "oil_c", "coolant_c", "g_long", "g_lat",
-           "motion_g", "place", "running_s")
+           "motion_g", "place", "running_s", "android_auto")
 OPS = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge,
        "==": operator.eq, "!=": operator.ne}
 DEFAULT_COOLDOWN_S = 30

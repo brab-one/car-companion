@@ -1,6 +1,7 @@
 // Board tab: what the board is doing (processor, temperature, memory), and
-// its settings. The time zone and the face updates per second are the
-// companion's own (settings.json). The processor's limit and power policy and
+// its settings. The time zone, the face updates per second and wireless
+// Android Auto are the companion's own (settings.json; the Android Auto bridge
+// follows its android_auto.enabled). The processor's limit and power policy and
 // Wi-Fi power saving are in board.json, which the board helper applies as
 // root (board/board_helper.py, installed once with tools/install_board_helper.sh).
 
@@ -9,6 +10,10 @@ import { patchConfig, saveConfig, showMessage } from './config_common.js';
 const REFRESH_MS = 2000;
 const OWN = ''; // the select value for "the board's own"
 const WIFI = { [OWN]: null, off: false, on: true };
+// Android Auto's access point: the channels per band (5 GHz: the ones without radar checks).
+const CHANNELS = { '2.4': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], 5: [36, 40, 44, 48] };
+const DEFAULT_CHANNEL = { '2.4': 6, 5: 36 };
+const AA_SILENT_S = 10; // longer without a report from the bridge: it does not run
 
 export class BoardEditor {
   constructor(root, ctx) {
@@ -23,6 +28,9 @@ export class BoardEditor {
       e.preventDefault();
       this.#save();
     });
+    this.$('#board-aa-toggle').addEventListener('click', () => this.#toggleAndroidAuto());
+    this.$('#board-aa-pair').addEventListener('click', () => this.#pairPhone());
+    this.$('#board-aa-band').addEventListener('change', () => this.#channels(0));
   }
 
   load() {
@@ -68,6 +76,8 @@ export class BoardEditor {
         + 'to see the board; the settings below are saved here and apply on the board after a deploy with --config.';
     if (cpu) this.#offer(cpu, info.helper?.board_default?.cpu?.policy0);
     this.$('#board-helper').textContent = helperText(info);
+    this.$('#board-aa-status').textContent = androidAutoText(info);
+    this.$('#board-aa-pair').disabled = info.android_auto?.state !== 'on';
   }
 
   // The processor's frequencies and power policies, as the board lists them.
@@ -89,13 +99,35 @@ export class BoardEditor {
     const board = this.ctx.app.config.board ?? {};
     this.$('#board-timezone').value = settings.timezone ?? '';
     this.$('#board-fps').value = settings.fps ?? 30;
+    const aa = settings.android_auto ?? {};
+    this.$('#board-aa-toggle').textContent = aa.enabled ? 'Disable Android Auto' : 'Enable Android Auto';
+    this.$('#board-aa-keep-wifi').checked = aa.keep_wifi ?? true;
+    this.$('#board-aa-name').value = aa.wifi_name ?? '';
+    this.$('#board-aa-password').value = aa.wifi_password ?? '';
+    this.$('#board-aa-band').value = aa.wifi_band ?? '2.4';
+    this.#channels(aa.wifi_channel ?? 0);
+    this.$('#board-aa-country').value = aa.country ?? '';
+    this.$('#board-aa-pairing').value = aa.pairing_min ?? 3;
     pick(this.$('#board-cpu-max'), board.cpu_max_mhz ?? OWN);
     pick(this.$('#board-governor'), board.cpu_governor ?? OWN);
     this.$('#board-wifi').value = board.wifi_powersave == null ? OWN : board.wifi_powersave ? 'on' : 'off';
   }
 
   async #save() {
-    const settings = { timezone: this.$('#board-timezone').value.trim(), fps: Number(this.$('#board-fps').value) };
+    const settings = {
+      timezone: this.$('#board-timezone').value.trim(),
+      fps: Number(this.$('#board-fps').value),
+      // Switched on and off by its own button, at once.
+      android_auto: {
+        keep_wifi: this.$('#board-aa-keep-wifi').checked,
+        wifi_name: this.$('#board-aa-name').value.trim(),
+        wifi_password: this.$('#board-aa-password').value,
+        wifi_band: this.$('#board-aa-band').value,
+        wifi_channel: Number(this.$('#board-aa-channel').value),
+        country: this.$('#board-aa-country').value.trim().toUpperCase(),
+        pairing_min: Number(this.$('#board-aa-pairing').value),
+      },
+    };
     const max = this.$('#board-cpu-max').value;
     const board = {
       version: 1,
@@ -110,6 +142,53 @@ export class BoardEditor {
           : 'Saved. The board\'s part applies once the board helper is installed.', 'ok');
     }
   }
+
+  // Android Auto goes on and off at once; the bridge follows within 2 s.
+  async #toggleAndroidAuto() {
+    const enabled = !(this.ctx.app.config.settings?.android_auto?.enabled ?? false);
+    if (await patchConfig(this.ctx.request, 'settings', { android_auto: { enabled } }, this.box)) {
+      showMessage(this.box, enabled
+        ? 'Android Auto is enabled: pair your phone with the board over Bluetooth in the next minutes.'
+        : 'Android Auto is disabled: the board\'s Wi-Fi and Bluetooth are back to normal.', 'ok');
+    }
+  }
+
+  #pairPhone() {
+    this.ctx.send({ type: 'android_auto_pair' });
+    showMessage(this.box, 'Pairing opens within 2 s: pair your phone with the board in its Bluetooth settings.', 'ok');
+  }
+
+  // The chosen band's channels; 0 is automatic.
+  #channels(value) {
+    const band = this.$('#board-aa-band').value;
+    const select = this.$('#board-aa-channel');
+    select.replaceChildren(new Option(`automatic (${DEFAULT_CHANNEL[band]})`, 0),
+      ...CHANNELS[band].map((ch) => new Option(ch, ch)));
+    select.value = CHANNELS[band].includes(value) ? value : 0;
+  }
+}
+
+function androidAutoText(info) {
+  if (!info.on_board) {
+    return 'Android Auto runs on the board only. Here in the simulator the button only switches the setting, '
+      + 'and the Car panel\'s "Android Auto connected" stands in for your phone.';
+  }
+  const aa = info.android_auto;
+  if (!aa || aa.age_s > AA_SILENT_S) {
+    return 'The Android Auto bridge is not running on the board. Start it once with tools/android_auto.sh; '
+      + 'then it starts with the board.';
+  }
+  const paired = aa.paired?.length ? `Paired: ${aa.paired.join(', ')}.` : 'No phone paired yet.';
+  if (aa.state === 'error') return `Could not start: ${aa.error}. It tries again every minute. ${paired}`;
+  if (aa.state !== 'on') return `Disabled: the board's Wi-Fi and Bluetooth are as usual. ${paired}`;
+  const pairing = aa.pairing_s > 0
+    ? `pairing open for ${Math.floor(aa.pairing_s / 60)}:${String(aa.pairing_s % 60).padStart(2, '0')}`
+    : 'pairing closed';
+  const own = aa.interface === 'ap0'
+    ? (aa.home ? `the board stays on "${aa.home}"` : 'the board\'s own Wi-Fi is free for your network')
+    : 'the board left your Wi-Fi meanwhile';
+  return `Enabled: Wi-Fi "${aa.wifi_name}" (password ${aa.wifi_password}), ${aa.band} GHz, channel ${aa.channel}`
+    + ` · ${own} · ${aa.phone ? 'your phone is connected' : 'waiting for your phone'} · ${pairing}. ${paired}`;
 }
 
 function helperText(info) {

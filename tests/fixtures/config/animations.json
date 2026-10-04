@@ -38,6 +38,15 @@
     "listening":    {"steps": [{"look": "center", "ms": 120, "ease": "out"},
                                {"mood": "surprised", "ms": 110, "ease": "out", "hold_ms": 500}]},
     "thinking":     {"steps": [{"look": [-0.6, -0.85], "ms": 260, "ease": "out", "hold_ms": [500, 900]},
-                               {"look": [0.6, -0.85], "ms": 300, "ease": "out", "hold_ms": [500, 900]}]}
+                               {"look": [0.6, -0.85], "ms": 300, "ease": "out", "hold_ms": [500, 900]}]},
+    "android_auto": {"steps": [{"mood": "surprised", "look": "center", "ms": 90, "ease": "out", "hold_ms": 280},
+                               {"mood": "delighted", "look": [0, -0.45], "ms": 160, "ease": "out"},
+                               {"look": [0, 0.05], "ms": 140, "ease": "in"},
+                               {"look": [0, -0.35], "ms": 140, "ease": "out"},
+                               {"look": [0, 0.05], "ms": 130, "ease": "in"},
+                               {"look": [-0.35, -0.2], "ms": 180, "ease": "out", "hold_ms": 120},
+                               {"mood": "wink", "look": [0.3, -0.2], "ms": 120, "ease": "out", "hold_ms": 550},
+                               {"mood": "delighted", "ms": 120, "hold_ms": 450},
+                               {"look": "center", "ms": 260, "hold_ms": 400}]}
   }
 }

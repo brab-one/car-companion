@@ -46,6 +46,16 @@ SETTINGS = {
         "llm_temperature": 0.3,  # 0 plain .. 1 creative
         "llm_timeout_s": 60,   # how long he waits for the AI model
     },
+    "android_auto": {          # wireless Android Auto through the board (android_auto/bridge.py)
+        "enabled": False,      # on: the board runs an access point for the phone
+        "keep_wifi": True,     # meanwhile stay on your Wi-Fi too (the access point gets a second, virtual interface)
+        "wifi_name": "",       # the access point's name; "" makes one up (CarCompanion-XXXX)
+        "wifi_password": "",   # 8 to 63 characters; "" makes one up on the board
+        "wifi_band": "2.4",    # "2.4" or "5" GHz (the UNO Q's Wi-Fi allows no access point on 5 GHz)
+        "wifi_channel": 0,     # 0: 6 on 2.4 GHz, 36 on 5 GHz
+        "country": "",         # the country you drive in, two letters ("IT"): its Wi-Fi rules; "" the board's
+        "pairing_min": 3,      # how long a phone can pair after switching on or "Pair a phone"
+    },
     "thresholds": {            # values rules.json can use as $name; add your own
         "fast_kmh": 100,
         "slow_kmh": 5,

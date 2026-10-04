@@ -9,7 +9,9 @@
     "surprised":  {"w": 42, "h": 52, "r": 21},
     "sleepy":     {"h": 10, "r": 5, "blink_s": null},
     "suspicious": {"left": {"h": 18}, "right": {"h": 40}},
-    "racing":     {"h": 30, "slant": 5, "visor": 1}
+    "racing":     {"h": 30, "slant": 5, "visor": 1},
+    "delighted":  {"w": 38, "h": 34, "cut": 14, "color": "#FF7AD9"},
+    "wink":       {"w": 38, "h": 34, "cut": 14, "color": "#FF7AD9", "left": {"h": 6, "r": 3, "cut": 0}}
   },
   "visor": {"y": 62, "w": 100, "h": 44, "r": 12, "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF",
             "glint": 0.2}

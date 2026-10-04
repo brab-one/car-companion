@@ -153,6 +153,24 @@ class ConfigStoreTest(unittest.TestCase):
             "settings.json: assistant.nearby_km: 0 is outside the allowed range 1 to 200",
             "settings.json: assistant.llm_max_tokens: expected a whole number, got 2.5"])
 
+    def test_android_auto_is_off_unless_switched_on(self):
+        self.assertIs(check("settings", {})[0]["android_auto"]["enabled"], False)
+        self.assertEqual(check("settings", {"android_auto": {"enabled": True}})[1], [])
+        self.assertEqual(check("settings", {"android_auto": {
+            "enabled": True, "keep_wifi": False, "wifi_name": "BRZ", "wifi_password": "secret-key", "wifi_band": "5",
+            "wifi_channel": 44, "country": "IT", "pairing_min": 5}})[1], [])
+        allowed = ("enabled, keep_wifi, wifi_name, wifi_password, wifi_band, wifi_channel, country, pairing_min")
+        self.assertEqual(check("settings", {"android_auto": {
+            "enabled": "yes", "band": 5, "wifi_name": "x" * 33, "wifi_password": "short", "wifi_band": "2.4",
+            "wifi_channel": 36, "country": "it", "pairing_min": 0}})[1], [
+            f"settings.json: android_auto.band: unknown field (allowed: {allowed})",
+            'settings.json: android_auto.enabled: expected true or false, got "yes"',
+            f'settings.json: android_auto.wifi_name: expected a name of at most 32 bytes, or "", got "{"x" * 33}"',
+            'settings.json: android_auto.wifi_password: expected 8 to 63 letters, digits or signs, or ""',
+            "settings.json: android_auto.wifi_channel: expected 0 (automatic) or 1 to 13, got 36",
+            'settings.json: android_auto.country: expected two capital letters like "IT", or "", got "it"',
+            "settings.json: android_auto.pairing_min: 0 is outside the allowed range 1 to 30"])
+
     def test_a_patch_changes_some_fields_and_keeps_the_rest_as_written(self):
         self.write("settings.json", '{"fps": 20, "layout": {"dual_scale": 2.0}}')
         s = self.store()

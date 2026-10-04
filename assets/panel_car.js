@@ -38,6 +38,9 @@ export class CarPanel {
     }
     this.ignition = root.querySelector('#ignition');
     this.ignition.addEventListener('change', () => this.send({ type: 'sim_car', ignition: this.ignition.checked }));
+    // On the board the Android Auto bridge sends the same message (android_auto/bridge.py).
+    this.androidAuto = root.querySelector('#android-auto');
+    this.androidAuto.addEventListener('change', () => this.send({ type: 'android_auto', connected: this.androidAuto.checked }));
     this.motion = root.querySelector('#motion');
     root.querySelector('#shake').addEventListener('click', () => this.send({ type: 'sim_motion', ...SHAKE }));
     this.scenarios = root.querySelector('#scenarios');
@@ -62,6 +65,7 @@ export class CarPanel {
       this.#show(spec, car[spec.field]);
     }
     this.ignition.checked = car.ignition;
+    this.androidAuto.checked = car.android_auto;
     this.motion.textContent = car.motion_g == null
       ? 'no data (no Modulino Movement connected)'
       : `${car.motion_g.toFixed(2)} g${car.sensor ? ' from the sensor' : ' (simulated)'}`;

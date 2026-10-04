@@ -1,0 +1,26 @@
+# The wireless Android Auto bridge, beside the app; tools/android_auto.sh starts it
+# once, then it starts with the board. It only does something while
+# android_auto.enabled is on in the app's settings.json, where its other
+# settings are too (Configure > Board).
+# It reaches Bluetooth (BlueZ) and Wi-Fi (NetworkManager) through the system
+# D-Bus, as root: from outside a login session only root may run an access
+# point and accept pairings. That is the board's root, so only run code here
+# that you trust.
+name: car-companion-aa
+services:
+  bridge:
+    build: .
+    image: car-companion-aa
+    network_mode: host          # the phone connects to the access point's address
+    cap_add: [NET_ADMIN]        # "iw reg set": the Wi-Fi country, for 5 GHz
+    volumes:
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - ./bridge.py:/opt/aa/bridge.py:ro
+      - ./protocol.py:/opt/aa/protocol.py:ro
+      - ./setting.py:/opt/aa/setting.py:ro
+      - /home/arduino/ArduinoApps/car-companion/config:/config:ro  # the android_auto settings
+      - data:/data              # the access point's name and password, when made up
+    restart: unless-stopped     # with the board, until tools/android_auto.sh --stop
+    stop_grace_period: 10s
+volumes:
+  data:
