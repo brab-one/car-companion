@@ -352,11 +352,30 @@ def _check_settings(data, errors):
     _number(data["say_gap_s"], "say_gap_s", errors, 0, 3600)
     _number(data["sleep_after_off_s"], "sleep_after_off_s", errors, 0, 3600)
     _number(data["place_exit_margin"], "place_exit_margin", errors, 0, 2)
+    _assistant(data["assistant"], spec["assistant"], errors)
     if _object(data["thresholds"], "thresholds", errors):
         for key, value in data["thresholds"].items():  # any names: rules use them as $name
             if not re.fullmatch(r"[a-z0-9_]+", key):
                 errors.append(f"thresholds.{key}: use small letters, digits and _ in names")
             _number(value, f"thresholds.{key}", errors)
+
+
+def _assistant(a, spec, errors):
+    if not _object(a, "assistant", errors):
+        return
+    _known_keys(a, spec, "assistant", errors)
+    if not isinstance(a["enabled"], bool):
+        errors.append(f"assistant.enabled: expected true or false, got {_show(a['enabled'])}")
+    words = a["wake_words"]
+    if not (isinstance(words, list) and words and all(isinstance(w, str) and w.strip() for w in words)):
+        errors.append(f'assistant.wake_words: expected a list of phrases like ["hey buddy"], got {_show(words)}')
+    langs = a["languages"]
+    if not (isinstance(langs, list) and langs and all(lang in ("en", "de") for lang in langs)):
+        errors.append(f'assistant.languages: expected a list of "en" and "de", got {_show(langs)}')
+    _number(a["nearby_km"], "assistant.nearby_km", errors, 1, 200)
+    _range(a["llm_max_tokens"], "assistant.llm_max_tokens", errors, 16, 1024, whole=True)
+    _number(a["llm_temperature"], "assistant.llm_temperature", errors, 0, 2)
+    _number(a["llm_timeout_s"], "assistant.llm_timeout_s", errors, 5, 600)
 
 
 _CHECKS = {"faces": _check_faces, "animations": _check_animations, "rules": _check_rules,

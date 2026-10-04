@@ -1,37 +1,63 @@
 import base64
 import json
 import os
-import shutil
 import struct
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
+from companion import assistant
 from companion.config_store import NAMES
 from companion.core import CONFIG_POLL_S, Companion
-from tests import ROOT
+from tests import CONFIG, ROOT, make_project
 
 KASTELRUTH = {"lat": 46.567, "lon": 11.567}
+
+
+class FakeModel:
+    """Stands in for the AI model: answers when `gate` is set (at once without one), or fails."""
+
+    def __init__(self, answer="It's a lovely day.", error=None, gate=None):
+        self.answer, self.error, self.gate, self.chats = answer, error, gate, []
+
+    def chat(self, chat, **options):
+        self.chats.append((chat, options))
+        if self.gate:
+            self.gate.wait(5)
+        if self.error:
+            raise self.error
+        return self.answer
 
 
 class CompanionTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
-        (self.dir / "config").mkdir()
-        for name in NAMES:
-            shutil.copy(ROOT / "config" / f"{name}.json", self.dir / "config")
-        shutil.copytree(ROOT / "assets" / "images", self.dir / "images")
-        shutil.copytree(ROOT / "assets" / "clips", self.dir / "clips")
+        make_project(self.dir)
         self.sent = []
         self.now = 0.0
-        self.brain = Companion(self.dir / "config", lambda msg, to: self.sent.append((msg, to)),
-                               images_dir=self.dir / "images", clock=lambda: self.now,
-                               echo=lambda line: None)
-        self.brain.tick()  # the simulated ignition starts on, so he wakes up
+        self.restart()
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def restart(self, llm=None):
+        """A new companion on the same files, e.g. with an AI model."""
+        self.brain = Companion(self.dir / "config", lambda msg, to: self.sent.append((msg, to)),
+                               images_dir=self.dir / "images", clock=lambda: self.now,
+                               echo=lambda line: None, llm=llm)
+        self.brain.tick()  # the simulated ignition starts on, so he wakes up
+
+    def answer(self):
+        """His latest answer; the AI model's comes from another thread."""
+        for _ in range(500):
+            if self.sent_of("answer"):
+                return self.sent_of("answer")[-1][0]
+            time.sleep(0.002)
+            self.run_for(0.05)
+        self.fail("no answer")
 
     def run_for(self, seconds, dt=0.05):
         end = self.now + seconds
@@ -104,7 +130,7 @@ class CompanionTest(unittest.TestCase):
         self.assertNotIn("bubble", self.brain.scene)
 
     def test_clips_come_now_and_then_but_place_pictures_come_first(self):
-        clips = json.loads((ROOT / "config" / "clips.json").read_text())
+        clips = json.loads((CONFIG / "clips.json").read_text())
         clips["clips"][0]["every_min"] = 0.5
         self.send(type="config_set", name="clips", data=clips)
         self.run_for(31)
@@ -120,7 +146,7 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(self.brain.scene["kind"], "clip")
 
     def test_a_place_video_plays_for_its_time_and_clips_wait(self):
-        places = json.loads((ROOT / "config" / "places.json").read_text())
+        places = json.loads((CONFIG / "places.json").read_text())
         kastelruth = places["places"][0]
         del kastelruth["image"]
         kastelruth.update(clip={"file": "wheel.png", "frames": 16, "fps": 12}, show_s=5)
@@ -136,12 +162,84 @@ class CompanionTest(unittest.TestCase):
         self.assertEqual(self.brain.scene["kind"], "eyes")
 
     def test_a_place_without_its_video_file_shows_its_picture(self):
-        places = json.loads((ROOT / "config" / "places.json").read_text())
+        places = json.loads((CONFIG / "places.json").read_text())
         places["places"][0]["clip"] = {"file": "gone.png", "frames": 10, "fps": 10}
         self.send(type="config_set", name="places", data=places)
         self.send(type="location", **KASTELRUTH)
         self.assertEqual((self.brain.scene["kind"], self.brain.scene["image"]), ("image", "schlern.png"))
         self.assertIn("clip gone.png not found in assets/clips", self.logs("warn"))
+
+    def test_car_questions_are_answered_from_the_data_at_once(self):
+        self.send(type="sim_car", oil_c=45)
+        self.send(type="ask", text="Wie warm ist das Öl?")
+        ((answer, to),) = self.sent_of("answer")
+        self.assertEqual((answer["text"], answer["lang"], answer["source"], to),
+                         ("Das Öl hat 45 °C, noch kalt (warm ab 80 °C). Lass es ruhig angehen.", "de", "data", None))
+        first = self.brain.scene["bubble"]["text"]["bits"]
+        self.assertEqual(self.brain.status["assistant"], "speaking")
+        self.run_for(6)
+        self.assertNotEqual(self.brain.scene["bubble"]["text"]["bits"], first)  # the second page
+        self.run_for(4)
+        self.assertEqual(self.brain.status["assistant"], "idle")
+        self.assertNotIn("bubble", self.brain.scene)
+
+    def test_other_questions_go_to_the_ai_model_with_the_facts(self):
+        gate = threading.Event()
+        model = FakeModel("The Santner is 2414 m high.", gate=gate)
+        self.restart(llm=model)
+        self.send(type="location", **KASTELRUTH)
+        self.run_for(9)
+        self.send(type="ask", text="How high is the Santner?")
+        self.assertEqual((self.brain.status["assistant"], self.brain.animator.playing), ("thinking", "thinking"))
+        self.run_for(3)
+        self.assertEqual(self.brain.status["assistant"], "thinking")  # the face keeps moving meanwhile
+        gate.set()
+        answer = self.answer()
+        self.assertEqual((answer["text"], answer["lang"], answer["source"]),
+                         ("The Santner is 2414 m high.", "en", "model"))
+        chat, options = model.chats[0]
+        self.assertIn("We are in Kastelruth / Castelrotto.", chat[0]["content"])
+        self.assertEqual((chat[1]["content"], options["max_tokens"]), ("How high is the Santner?", 100))
+
+    def test_a_new_question_replaces_one_still_thinking(self):
+        gate = threading.Event()
+        self.restart(llm=FakeModel("too late", gate=gate))
+        self.send(type="ask", text="Tell me a story")
+        self.send(type="ask", text="How fast are we going?")
+        gate.set()
+        time.sleep(0.05)  # the model's late answer arrives ...
+        self.run_for(1)
+        self.assertEqual([m["text"] for m, _ in self.sent_of("answer")], ["We're standing still."])  # ... unused
+
+    def test_without_a_model_he_says_so(self):
+        self.send(type="ask", text="Tell me a joke")
+        self.assertEqual(self.answer()["text"], assistant.UNKNOWN["en"])
+        self.restart(llm=FakeModel(error=ConnectionError("no AI model at http://x/v1 (Name or service not known)")))
+        self.sent.clear()
+        self.send(type="ask", text="Erzähl mir einen Witz")
+        answer = self.answer()
+        self.assertEqual((answer["text"], answer["source"]), (assistant.NO_MODEL["de"], "none"))
+        self.assertIn("AI model: no AI model at http://x/v1 (Name or service not known)", self.logs("warn"))
+
+    def test_his_own_lines_wait_while_he_answers(self):
+        self.send(type="sim_car", speed_kmh=50)
+        self.run_for(3)
+        self.send(type="ask", text="How warm is the coolant?")
+        self.send(type="sim_motion", g=1.0, s=1)  # would make him say "Hey, stop shaking me!"
+        self.run_for(1)
+        self.assertNotIn("Hey, stop shaking me!", self.said())
+
+    def test_the_wake_word_makes_him_listen(self):
+        self.run_for(3)
+        self.send(type="voice", state="listening")
+        self.assertEqual((self.brain.status["assistant"], self.brain.animator.playing), ("listening", "listening"))
+        self.send(type="voice", state="idle")
+        self.assertEqual(self.brain.status["assistant"], "idle")
+        self.send(type="sim_car", ignition=False)
+        self.send(type="voice", state="listening")
+        self.send(type="ask", text="Where are we?")
+        self.assertEqual((self.brain.status["assistant"], self.sent_of("answer")), ("idle", []))
+        self.assertIn("he is asleep; turn the ignition on first", self.logs())
 
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)
@@ -202,7 +300,7 @@ class CompanionTest(unittest.TestCase):
         self.assertTrue(any("quiet for 60 more min" in t for t in self.logs()))
 
     def test_config_set_saves_and_applies(self):
-        places = json.loads((ROOT / "config" / "places.json").read_text())
+        places = json.loads((CONFIG / "places.json").read_text())
         places["places"][0]["radius_m"] = 500
         self.send(type="config_set", name="places", data=places)
         ((result, to),) = self.sent_of("config_result")

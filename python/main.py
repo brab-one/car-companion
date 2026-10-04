@@ -9,6 +9,7 @@ from arduino.app_utils import App, Bridge
 from arduino.app_bricks.web_ui import WebUI
 
 from companion.core import Companion
+from companion.llm import LlmClient
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 CHANNEL = "msg"  # every message travels on this one WebUI channel, see PROTOCOL.md
@@ -20,7 +21,9 @@ def send(msg, to=None):
     ui.send_message(CHANNEL, msg, to)  # to: a client's id, or None for all clients
 
 
-brain = Companion(CONFIG_DIR, send)
+# Questions the data cannot answer go to App Lab's LLM brick (a small Qwen
+# model on llama.cpp), once arduino:llm is in app.yaml.
+brain = Companion(CONFIG_DIR, send, llm=LlmClient())
 ui.on_message(CHANNEL, lambda sid, data: brain.receive(data, sid))
 
 

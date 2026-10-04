@@ -20,7 +20,7 @@ MAX_CHARS = (SIZE - 2 * MARGIN - 2 * PAD - 2) // font.ADVANCE  # 18 characters p
 
 def wrap(text, width=MAX_CHARS, max_lines=MAX_LINES):
     """Split text into lines of at most `width` characters, breaking at spaces.
-    Too long for max_lines: the last line ends with "..."."""
+    Too long for max_lines: the last line ends with "..." (None: no limit)."""
     lines, line = [], ""
     for word in font.normalize(text).split():
         while len(word) > width:  # a word longer than a line is cut
@@ -36,10 +36,16 @@ def wrap(text, width=MAX_CHARS, max_lines=MAX_LINES):
             line = f"{line} {word}" if line else word
     if line:
         lines.append(line)
-    if len(lines) > max_lines:
+    if max_lines is not None and len(lines) > max_lines:
         lines = lines[:max_lines]
         lines[-1] = lines[-1][: width - 3].rstrip() + "..."
     return lines or [""]
+
+
+def pages(text):
+    """A long text (an answer) as bubble-sized pieces, shown one after the other."""
+    lines = wrap(text, max_lines=None)
+    return [" ".join(lines[i:i + MAX_LINES]) for i in range(0, len(lines), MAX_LINES)]
 
 
 def bubble(text, color="#FFFFFF"):

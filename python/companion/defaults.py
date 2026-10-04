@@ -35,6 +35,15 @@ SETTINGS = {
     "say_gap_s": 8,            # at least this many seconds between two lines
     "sleep_after_off_s": 20,   # display off this long after the ignition is turned off
     "place_exit_margin": 0.2,  # a place is left at radius_m * (1 + this), see geofence.py
+    "assistant": {             # questions to him, see assistant.py
+        "enabled": True,
+        "wake_words": ["hey buddy", "hallo kumpel"],  # what makes him listen (with a microphone, on the board)
+        "languages": ["en", "de"],  # what you may speak; the first is used when unsure
+        "nearby_km": 20,       # how far around you he looks for places to talk about
+        "llm_max_tokens": 100, # the length of an answer from the AI model
+        "llm_temperature": 0.3,  # 0 plain .. 1 creative
+        "llm_timeout_s": 60,   # how long he waits for the AI model
+    },
     "thresholds": {            # values rules.json can use as $name; add your own
         "fast_kmh": 100,
         "slow_kmh": 5,

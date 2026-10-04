@@ -8,11 +8,7 @@ from pathlib import Path
 from companion.config_store import NAMES, ConfigStore
 from companion.jsonfile import dumps_compact, write_text_atomic
 from companion.validate import check, cross_check
-from tests import ROOT
-
-CONFIG = ROOT / "config"
-IMAGES = sorted(p.name for p in (ROOT / "assets" / "images").glob("*.png"))
-CLIPS = sorted(p.name for p in (ROOT / "assets" / "clips").glob("*.png"))
+from tests import CLIPS, CONFIG, IMAGES, ROOT
 
 
 class ConfigStoreTest(unittest.TestCase):
@@ -44,6 +40,10 @@ class ConfigStoreTest(unittest.TestCase):
             data[name], errors = check(name, json.loads((CONFIG / f"{name}.json").read_text()))
             self.assertEqual(errors, [], name)
         self.assertEqual(cross_check(data, IMAGES, CLIPS), [])
+
+    def test_your_config_files_are_valid(self):
+        for name in NAMES:  # config/, as changed in the simulator; missing pictures only warn in the log
+            self.assertEqual(check(name, json.loads((ROOT / "config" / f"{name}.json").read_text()))[1], [], name)
 
     def test_good_file_is_used_and_kept(self):
         s = self.store()
@@ -142,6 +142,15 @@ class ConfigStoreTest(unittest.TestCase):
         self.assertEqual((s.data["settings"]["fps"], s.data["settings"]["displays"]), (20, 1))
         _, errors = check("settings", {"displays": True, "brightness": {"mode": "dim"}})
         self.assertEqual(len(errors), 2)
+
+    def test_assistant_settings_are_checked(self):
+        _, errors = check("settings", {"assistant": {"wake_words": [], "languages": ["fr"], "nearby_km": 0,
+                                                     "llm_max_tokens": 2.5}})
+        self.assertEqual(errors, [
+            'settings.json: assistant.wake_words: expected a list of phrases like ["hey buddy"], got []',
+            'settings.json: assistant.languages: expected a list of "en" and "de", got ["fr"]',
+            "settings.json: assistant.nearby_km: 0 is outside the allowed range 1 to 200",
+            "settings.json: assistant.llm_max_tokens: expected a whole number, got 2.5"])
 
     def test_atomic_write_leaves_no_temp_file(self):
         write_text_atomic(self.dir / "x.json", "{}")

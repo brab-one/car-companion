@@ -86,6 +86,9 @@ const handlers = {
   say() {
     // Shown on the display as a speech bubble (part of the scene); later also spoken aloud.
   },
+  answer(m) {
+    phone.setAnswer(m);
+  },
   log(m) {
     log.add(m);
   },

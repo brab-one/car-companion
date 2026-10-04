@@ -23,6 +23,10 @@ phone app, the car (OBD dongle) and the phone's GPS. All the features below work
   a visor slams down that lifts again 8 s after slowing down.
 - **Feels the board move**: with a Modulino Movement, shaking the board makes him angry.
 - **Talks**: short lines in a speech bubble on the display. How chatty he is can be set.
+- **Answers questions**, in English or German: about the car (oil, coolant, revs, speed, is the
+  engine warm), where you are, the nearest fuel station and the peaks around, exactly and at once
+  from the data and an offline map. Anything else goes to a small AI model on the board, which
+  gets the same facts. Typed for now; by voice once the board has a microphone.
 - **Knows places**: drive into a place and he shows its picture, video or GIF for as long as you
   set, with a line.
 - **Clips**: add any video or GIF. It is scaled down to the display and shows every few minutes
@@ -54,6 +58,8 @@ phone app, the car (OBD dongle) and the phone's GPS. All the features below work
 - Its USB-C cable, and a Linux or macOS PC with adb (Arch: `android-tools`, Debian and Ubuntu: `adb`)
 - In the car: USB-C power for the board
 - Optional: a Modulino Movement on the Qwiic connector, for the motion sensing
+- To talk to him (the next step): a USB microphone, a small USB speaker and a USB-C hub with its
+  own power input (5 V, 3 A), since the board's only USB-C port then goes to the hub
 
 **The display** (drawing on it is the next step, see Progress):
 
@@ -81,6 +87,8 @@ app (the simulator's phone panel and map stand in for it).
 - [x] 4. Places and location panel with a map and a route player (sunrise/sunset dimming still to do)
 - [x] 5. Configure dialog: places with pictures, and every config file (the chat stub is still to do)
 - [x] Face editor, faces by car data, speech bubble, video and GIF clips, videos for places
+- [x] Questions: typed, answered from the car data and an offline map, or by an AI model
+- [ ] Voice on the board: microphone, your own wake word, Whisper, Piper, App Lab's LLM brick
 - [ ] 6. LED matrix output on the board
 - [ ] Drawing on the real OLED (measuring the Bridge's speed first)
 
@@ -112,6 +120,47 @@ He blinks every few seconds (`blink_s` of the mood; worried blinks more).
 All of this is set in the config files; nothing is hard-coded. The easy way
 to change it is the Configure dialog in the simulator: **Faces** for how each
 mood looks, **Car data** for which face goes with which car values.
+
+## Ask him
+
+Type a question in the simulator's phone panel (**Ask him**), in English or
+German; he answers in the same language, in the speech bubble, a few lines at
+a time. Tick "Read his answers aloud" to hear them with the browser's voice.
+On the board you will ask by voice: say the wake word, then the question.
+
+He answers these exactly and at once, from the data:
+
+| You ask | He says |
+|---|---|
+| How warm is the oil? · Wie warm ist das Öl? | The oil is at 90 °C, nice and warm. |
+| Is the engine warm? · Coolant? · Revs? · How fast? | from the car's data |
+| Where am I? · Wo sind wir? | Wir sind in Kastelruth. |
+| Nearest gas station? · Wo kann ich tanken? | The nearest fuel station is GNP-Tankstelle Kastelruth, 850 m south-west. |
+| Which mountain is that? · Welcher Berg ist das? | the peaks that look biggest from where you are |
+
+For the map, download the points of interest around your places once (towns,
+peaks, passes, lakes, castles, sights, fuel and charging stations; needs
+internet, © OpenStreetMap contributors, ODbL):
+
+```bash
+python3 tools/fetch_poi.py
+```
+
+It writes `assets/poi.json` (not in git); the deploy copies it to the board.
+
+Anything else ("How high is the Santner?", "Tell me about Kastelruth") goes to
+an AI model, with the car's data, where you are and what is around as facts.
+On the board that is App Lab's LLM brick: Qwen 3.5 0.8B on llama.cpp, offline
+(it comes with the voice step). On a PC, give the simulator any
+OpenAI-compatible server, e.g. llama.cpp's `llama-server` with a small model:
+
+```bash
+python3 tools/run_pc.py --llm http://localhost:8080/v1
+```
+
+Without a model he says "I can't answer that yet." While he listens and
+thinks he plays the animations `listening` and `thinking` (animations.json);
+his own lines wait until he has answered. Settings: `assistant` in settings.json.
 
 ## Run it on your PC
 
@@ -378,6 +427,7 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 | `sleep_after_off_s` | Display off this long after the ignition is turned off. |
 | `place_exit_margin` | How much farther than its radius a place is left (0.2 = 20 %). |
 | `thresholds` | Numbers the rules use as `$name`. Add your own. |
+| `assistant` | Questions: `enabled`; `wake_words` (any phrases, e.g. `["hey buddy", "hallo kumpel"]`); `languages` (`"en"`, `"de"`; the first when unsure); `nearby_km` (how far around he looks); `llm_max_tokens`, `llm_temperature`, `llm_timeout_s` for the AI model. |
 
 ## Where the next parts plug in
 
@@ -387,7 +437,8 @@ Settings you leave out use the defaults in `python/companion/defaults.py`.
 - **OBD dongle**: replaces `car_sim.py` behind the same interface (`state`, `tick()`).
 - **GPS from the phone**: the same `location` message the map sends now.
 - **Brightness from sunrise/sunset**: `Companion._brightness()`.
-- **AI chat and voice**: a `chat` message, and speaking the `say` messages.
+- **Voice**: on the board, a microphone listens for the wake word, Whisper turns the question
+  into text and sends `ask`; Piper speaks the `answer` messages on a USB speaker.
 
 ## License
 

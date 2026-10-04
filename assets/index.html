@@ -35,6 +35,14 @@
           <div id="moods" class="buttons"></div>
           <h3>Play an animation</h3>
           <div id="animations" class="buttons"></div>
+          <h3>Ask him</h3>
+          <form id="ask-form" class="ask">
+            <input id="ask-text" placeholder="How warm is the oil? · Wo ist die nächste Tankstelle?" autocomplete="off" />
+            <button type="submit" class="primary">Ask</button>
+          </form>
+          <label class="check"><input id="ask-speak" type="checkbox" /> Read his answers aloud (with this
+            browser's voice; the board will use its speaker)</label>
+          <p id="ask-answer" class="hint"></p>
         </section>
 
         <section class="card" id="car">

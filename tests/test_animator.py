@@ -4,10 +4,10 @@ import random
 import unittest
 
 from companion.animator import Animator, mix
-from tests import ROOT
+from tests import CONFIG
 
-FACES = json.loads((ROOT / "config" / "faces.json").read_text())
-ANIMATIONS = json.loads((ROOT / "config" / "animations.json").read_text())
+FACES = json.loads((CONFIG / "faces.json").read_text())
+ANIMATIONS = json.loads((CONFIG / "animations.json").read_text())
 IDLE = {"play": ["glance_left"], "every_s": [5, 12]}
 
 

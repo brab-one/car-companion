@@ -4,3 +4,5 @@ __pycache__/
 # Last good copies of the config files, written by the companion at runtime.
 config/.good/
 .claude/launch.json
+# Points of interest from tools/fetch_poi.py (OpenStreetMap data, ODbL).
+assets/poi.json

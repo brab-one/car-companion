@@ -93,6 +93,8 @@ input[type="file"] { border: none; padding: 4px 0; }
 
 label { font-size: 13px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+.ask { display: flex; gap: 8px; margin: 8px 0; }
+.ask input { flex: 1; min-width: 0; }
 
 .sliders { display: grid; gap: 4px; margin-top: 10px; }
 .slider { display: grid; grid-template-columns: 70px 1fr 140px; align-items: center; gap: 10px; }

@@ -8,7 +8,8 @@ Hosts (python/main.py on the board, tools/run_pc.py on a PC) do three things:
 
 Each tick reads the car (simulated until the OBD dongle arrives), lets the
 rules choose mood and idle behaviour, moves the animations on and sends the
-scene. Messages are small dicts with a "type" field, see PROTOCOL.md. To
+scene. Questions ("ask") are answered from the data or by the AI model
+(assistant.py). Messages are small dicts with a "type" field, see PROTOCOL.md. To
 handle a new message type, add an on_<type> method and list it in HANDLERS."""
 
 import collections
@@ -17,7 +18,7 @@ import queue
 import time
 from pathlib import Path
 
-from . import layout, speech, validate
+from . import assistant, layout, speech, validate
 from .animator import Animator, Tween
 from .car_sim import SCENARIOS, CarSim
 from .clips import ClipFiles, ClipPlayer, frame_at
@@ -25,6 +26,7 @@ from .config_store import ConfigStore
 from .geofence import Geofences
 from .images import Images
 from .motion import Motion
+from .poi import Pois
 from .rules import Rules
 
 PROTOCOL_VERSION = 1
@@ -36,11 +38,14 @@ SOURCE_TEXT = {"file": "file", "last_good": "last good version", "defaults": "bu
 
 
 class Companion:
-    def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print, clips_dir=None):
+    def __init__(self, config_dir, send, images_dir=None, clock=time.monotonic, echo=print, clips_dir=None,
+                 llm=None, wall_clock=time.localtime):
         """send(msg, to): deliver msg to client `to`, or to every client when to is None.
         images_dir: where place pictures are (default: assets/images next to config/);
         clips_dir: where clips are (default: clips next to images_dir).
-        echo(line): prints log lines (App Lab shows them); tests pass a silent one."""
+        echo(line): prints log lines (App Lab shows them); tests pass a silent one.
+        llm: answers questions the data cannot (llm.LlmClient), or None.
+        wall_clock(): the local time, for questions."""
         self._send = send
         self._clock = clock
         self._echo = echo
@@ -50,6 +55,7 @@ class Companion:
         config_dir = Path(config_dir)
         self.images = Images(images_dir or config_dir.parent / "assets" / "images")
         self.clip_files = ClipFiles(clips_dir or self.images.folder.parent / "clips")
+        self.pois = Pois(self.images.folder.parent / "poi.json")  # from tools/fetch_poi.py
         self.store = ConfigStore(config_dir, log=self.log)
         self.store.load_all()
         for name in self.store.names:
@@ -78,6 +84,13 @@ class Companion:
         self._had_sensor = False
         self._sensor_report = None   # what the sketch last said about the Modulino
         self._missing_logged = False
+        self._wall = wall_clock
+        self._answers = queue.Queue()  # (ask id, text, error) from the AI model's thread
+        self.asker = assistant.Asker(llm, lambda *answer: self._answers.put(answer)) if llm else None
+        self.assistant_state = "idle"  # "listening", "thinking" or "speaking"
+        self._asking = None            # (id, question, language) while the AI model thinks
+        self._asked = 0
+        self._pages = collections.deque()  # the rest of an answer, one bubble each
 
     @property
     def fps(self):
@@ -103,6 +116,8 @@ class Companion:
             self._dispatch(*self._inbox.get_nowait())
         while not self._samples.empty():
             self.motion.add(*self._samples.get_nowait())
+        while not self._answers.empty():
+            self._model_answered(*self._answers.get_nowait(), now)
         if now >= self._next_poll:
             self._next_poll = now + CONFIG_POLL_S
             for name in self.store.poll():
@@ -149,6 +164,8 @@ class Companion:
         idle = cfg["settings"]["idle"]
         idle = next(({**idle, **r.spec["idle"]} for r, _ in active if "idle" in r.spec), idle)
         self.animator.set_base(mood, idle, now)
+        if self.assistant_state == "thinking" and self.animator.playing is None:
+            self._play_face("thinking", now)  # again and again until the answer is there
         for rule, fired in active:
             if fired and "say" in rule.spec:
                 self._say(rule.spec["say"], f"rule {rule.id}", rule.spec.get("level", 2), now)
@@ -170,6 +187,9 @@ class Companion:
         self.log("info", "ignition on: waking up", "car")
 
     def _sleep(self, now):
+        self._asking = None
+        self._pages.clear()
+        self._set_assistant("idle", now)
         self.asleep = True
         self._display_off_at = now + self.store.data["settings"]["sleep_after_off_s"]
         self.animator.set_awake(False, now)
@@ -210,14 +230,60 @@ class Companion:
         settings = self.store.data["settings"]
         if level > settings["chattiness"] or now - self._last_say < settings["say_gap_s"]:
             return
+        if self.assistant_state != "idle":  # a question and its answer come first
+            return
         self._last_say = now
         self.send({"type": "say", "text": text, "source": source})
         self.log("say", text, source)
-        look = settings["bubble"]
+        self._show_bubble(text, now)
+
+    def _show_bubble(self, text, now):
+        look = self.store.data["settings"]["bubble"]
         if look["enabled"]:
             bubble = speech.bubble(text, look["color"])
             self.speech = (bubble, now + speech.seconds(text, look["min_s"], look["per_char_s"]))
             self.lift.to(speech.lift(bubble), now, LIFT_MS)
+
+    # ---- questions ----------------------------------------------------------------
+
+    def _facts(self):
+        cfg = self.store.data
+        places = cfg["places"]["places"]
+        return assistant.Facts(
+            car=dict(self.car.state), thresholds=cfg["settings"]["thresholds"], location=self.location,
+            place=next((p for p in places if p["id"] == self.geo.current), None), places=places,
+            pois=self.pois.all(), nearby_km=cfg["settings"]["assistant"]["nearby_km"], local_time=self._wall())
+
+    def _model_answered(self, ask_id, text, error, now):
+        if not self._asking or self._asking[0] != ask_id:
+            return  # an earlier question, or he fell asleep meanwhile
+        _, question, lang = self._asking
+        self._asking = None
+        if error is not None:
+            self.log("warn", f"AI model: {error}", "assistant")
+            self._answer(question, assistant.NO_MODEL[lang], lang, "none", now)
+        else:
+            self._answer(question, text or assistant.UNKNOWN[lang], lang, "model", now)
+
+    def _answer(self, question, text, lang, source, now):
+        """source: "data" (exact), "model" (the AI model) or "none" (he could not answer)."""
+        self.send({"type": "answer", "question": question, "text": text, "lang": lang, "source": source})
+        self.log("say", text, "answer")
+        self._last_say = now
+        self._pages = collections.deque(speech.pages(text))
+        self._set_assistant("speaking", now)
+        self._show_bubble(self._pages.popleft(), now)
+
+    def _set_assistant(self, state, now):
+        if state != self.assistant_state:
+            self.assistant_state = state
+            if state in ("listening", "thinking"):
+                self._play_face(state, now)
+
+    def _play_face(self, name, now):
+        """The "listening" or "thinking" animation from animations.json, or built-in steps."""
+        if not self.animator.play(name, now):
+            self.animator.play(assistant.FACE_STEPS[name], now)
 
     # ---- incoming messages ----------------------------------------------------
 
@@ -314,6 +380,49 @@ class Companion:
             else:
                 self._enter_place(place, now)
 
+    def on_ask(self, msg, client):
+        text = msg.get("text")
+        if not (isinstance(text, str) and text.strip()):
+            raise ValueError("expected the question as text")
+        question = " ".join(text.split())[:300]
+        cfg = self.store.data["settings"]["assistant"]
+        if not cfg["enabled"]:
+            self.log("info", "questions are switched off (assistant.enabled in settings.json)", "assistant")
+            return
+        if self.asleep:
+            self.log("info", "he is asleep; turn the ignition on first", "assistant")
+            return
+        now = self._clock()
+        lang = msg.get("lang")
+        if lang not in cfg["languages"]:
+            lang = assistant.detect_language(question, cfg["languages"])
+        self.log("info", question, "question")
+        self._asking = None  # a new question replaces one the AI model still thinks about
+        facts = self._facts()
+        answer = assistant.direct_answer(question, lang, facts)
+        if answer:
+            self._answer(question, answer, lang, "data", now)
+        elif self.asker:
+            self._asked += 1
+            self._asking = (self._asked, question, lang)
+            self._pages.clear()
+            self._set_assistant("thinking", now)
+            self.asker.ask(self._asked, assistant.messages(question, lang, facts), max_tokens=cfg["llm_max_tokens"],
+                           temperature=cfg["llm_temperature"], timeout=cfg["llm_timeout_s"])
+        else:
+            self._answer(question, assistant.UNKNOWN[lang], lang, "none", now)
+
+    def on_voice(self, msg, client):
+        """From the voice pipeline on the board: the wake word was heard ("listening"),
+        or nothing followed it ("idle")."""
+        state = msg.get("state")
+        if state not in ("listening", "idle"):
+            raise ValueError(f'expected state "listening" or "idle", got {state!r}')
+        if state == "listening" and not self.asleep:
+            self._set_assistant("listening", self._clock())
+        elif state == "idle" and self.assistant_state == "listening":
+            self._set_assistant("idle", self._clock())
+
     def on_sim_car(self, msg, client):
         self.car.set({k: v for k, v in msg.items() if k != "type"})
 
@@ -336,6 +445,8 @@ class Companion:
         "clip_play": on_clip_play,
         "play": on_play,
         "location": on_location,
+        "ask": on_ask,
+        "voice": on_voice,
         "sim_car": on_sim_car,
         "sim_scenario": on_sim_scenario,
         "sim_motion": on_sim_motion,
@@ -352,7 +463,13 @@ class Companion:
             self.place_media = None
         if self.speech and now >= self.speech[1]:
             self.speech = None
-            self.lift.to(0.0, now, LIFT_MS)
+            if self._pages:
+                self._show_bubble(self._pages.popleft(), now)  # the answer goes on
+            else:
+                self.lift.to(0.0, now, LIFT_MS)
+        if self.assistant_state == "speaking" and not self.speech:
+            self._pages.clear()
+            self._set_assistant("idle", now)
         if now >= self._display_off_at:
             scene = {"kind": "off"}
         elif self.place_media:
@@ -379,7 +496,7 @@ class Companion:
         status = {"mood": self.animator.base_mood, "animation": self.animator.playing,
                   "rules": self._active, "place": self.geo.current, "location": self.location,
                   "clip": self.clips.current[0]["id"] if self.clips.current else None,
-                  "asleep": self.asleep, "brightness": brightness}
+                  "assistant": self.assistant_state, "asleep": self.asleep, "brightness": brightness}
         if status != self.status:
             self.status = status
             self.send({"type": "status", **status})

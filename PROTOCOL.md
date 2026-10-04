@@ -32,13 +32,14 @@ Rules:
 | `clip_put` | `name` (e.g. `"wheel.png"`), `part`, `parts`, `data` (base64) | Stores a clip or a place's video, sent in parts of at most 384 kB: one tall PNG, 128 wide, frames of 128 × 128 under each other, at most 300 frames and 8 MB. Answer to each part: `clip_result`, to this client; after the last part everyone gets `clip_files`. |
 | `clip_play` | `id` | Shows a clip from clips.json now ("Play now"). |
 | `play` | `name`, or `steps` | Plays an animation from animations.json, or unsaved steps (a preview while editing). Example: `{"type": "play", "steps": [{"mood": "happy", "ms": 300, "hold_ms": 2500}]}` |
+| `ask` | `text`, optional `lang` (`"en"`, `"de"`) | A question, typed or heard. Without `lang` the language is guessed from the words. Answer: `answer`, to everyone. |
+| `voice` | `state`: `"listening"` or `"idle"` | From the voice pipeline on the board: the wake word was heard, or no question followed. His face shows that he listens. |
 | `location` | `lat`, `lon` | The phone's GPS position. Later also `speed_kmh`, `acc_m` and `time` (to set the board's clock). |
 | `sim_car` | any car fields: `ignition`, `speed_kmh`, `rpm`, `oil_c`, `coolant_c`, `g_long`, `g_lat` | Simulator only: sets values on the simulated car, and stops a running scenario. |
 | `sim_scenario` | `name` | Simulator only: plays a scripted drive (names in `state.scenarios`). |
 | `sim_motion` | `g`, `s` | Simulator only: pretends the Modulino Movement measures `g` for `s` seconds ("Shake the board"). |
 
-Planned: `chat` (a question; answer `chat_reply`), `sim_clock` (fake time of
-day for testing night dimming).
+Planned: `sim_clock` (fake time of day for testing night dimming).
 
 ## Companion → app
 
@@ -53,8 +54,9 @@ day for testing night dimming).
 | `clip_result` | `name`, `ok`, `done`, `error` | Answer to each part of `clip_put`; `done` once the whole clip is stored. |
 | `clip_files` | `names` | The clip files there are now. |
 | `scene` | `scene` | What the displays show now. Sent only when it changes. See [Scenes](#scenes). |
-| `status` | `mood`, `animation`, `rules`, `place`, `location`, `clip`, `asleep`, `brightness` | Sent when one of its fields changes. `mood` is the mood chosen by the rules; `animation` the one playing, or null; `rules` the ids of the active rules; `place` the id of the place we are in, or null; `location` `{lat, lon}` or null; `clip` the id of the clip on the display, or null. |
+| `status` | `mood`, `animation`, `rules`, `place`, `location`, `clip`, `assistant`, `asleep`, `brightness` | Sent when one of its fields changes. `mood` is the mood chosen by the rules; `animation` the one playing, or null; `rules` the ids of the active rules; `place` the id of the place we are in, or null; `location` `{lat, lon}` or null; `clip` the id of the clip on the display, or null; `assistant` `"idle"`, `"listening"`, `"thinking"` or `"speaking"`. |
 | `car` | car fields, `scenario`, `motion_g`, `sensor` | Current car data, at most 5 times a second. `motion_g` is null without motion data; `sensor` says whether it comes from a real Modulino Movement. |
+| `answer` | `question`, `text`, `lang`, `source` | His answer to `ask`. `source`: `"data"` (exact, from the car and the map), `"model"` (the AI model) or `"none"` (he could not answer). Shown in the bubble, and read aloud where there is a speaker. |
 | `say` | `text`, `source` | The companion says a line; `source` is what made him say it, e.g. `rule cold_oil_rev` or `place kastelruth`. |
 | `log` | `level` (`info`, `warn`, `error`, `say`), `source`, `text` | Something happened: a rule turned on or off, a place was entered, a config problem. |
 

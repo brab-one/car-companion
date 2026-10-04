@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "displays": 1,
+  "fps": 30,
+  "brightness": {"mode": "manual", "manual": 100},
+  "layout": {"look_x_px": 18, "look_y_px": 12, "dual_scale": 2.0},
+  "mood_ms": 350,
+  "idle": {"play": ["glance_left", "glance_right", "look_up"], "every_s": [5, 12]},
+  "chattiness": 2,
+  "bubble": {"enabled": true, "color": "#FFFFFF", "min_s": 2.5, "per_char_s": 0.06},
+  "say_gap_s": 8,
+  "sleep_after_off_s": 20,
+  "place_exit_margin": 0.2,
+  "thresholds": {"fast_kmh": 100, "slow_kmh": 5, "shake_g": 0.35, "oil_warm_c": 80, "coolant_hot_c": 105,
+                 "redline_rpm": 7500}
+}

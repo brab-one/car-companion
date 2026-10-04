@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "default": "neutral",
+  "moods": {
+    "neutral":    {"w": 36, "h": 44, "r": 10, "color": "#00E5FF", "slant": 0, "cut": 0, "gap": 14, "blink_s": [3, 7]},
+    "happy":      {"h": 34, "cut": 14, "color": "#7CFF6B"},
+    "worried":    {"w": 32, "h": 36, "r": 12, "slant": -12, "color": "#FFC94D", "blink_s": [1.5, 3.5]},
+    "angry":      {"h": 36, "slant": 12, "color": "#FF4D3A"},
+    "surprised":  {"w": 42, "h": 52, "r": 21},
+    "sleepy":     {"h": 10, "r": 5, "blink_s": null},
+    "suspicious": {"left": {"h": 18}, "right": {"h": 40}},
+    "racing":     {"h": 30, "slant": 5, "visor": 1}
+  },
+  "visor": {"y": 62, "w": 100, "h": 44, "r": 12, "color": "#0B1E3A", "alpha": 0.82, "shine": "#9CC8FF",
+            "glint": 0.2}
+}

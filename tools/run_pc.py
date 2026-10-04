@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python"))
 
 from companion.core import Companion  # noqa: E402  (needs the path above)
+from companion.llm import LlmClient  # noqa: E402
 
 ASSETS = ROOT / "assets"
 SHIM = ROOT / "tools" / "pc_webui.js"
@@ -144,10 +145,14 @@ def main():
     parser.add_argument("--port", type=int, default=7000)
     parser.add_argument("--lan", action="store_true",
                         help="listen on all network interfaces, e.g. to open it on your phone")
+    parser.add_argument("--llm", metavar="URL",
+                        help="an OpenAI-compatible AI model server for questions the data cannot answer, "
+                             "e.g. llama.cpp's llama-server: http://localhost:8080/v1")
     args = parser.parse_args()
 
     clients = Clients()
-    brain = Companion(ROOT / "config", clients.send)
+    brain = Companion(ROOT / "config", clients.send, echo=lambda line: print(line, flush=True),
+                      llm=LlmClient(args.llm) if args.llm else None)
     host = "0.0.0.0" if args.lan else "127.0.0.1"
     try:
         server = ThreadingHTTPServer((host, args.port), make_handler(clients, brain))
