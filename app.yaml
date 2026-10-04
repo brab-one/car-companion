@@ -1,6 +1,8 @@
 name: Car Companion
 icon: 🚗
-description: Dashboard companion with an animated face, driving reactions and place pictures.
+description: Dashboard companion with an animated face, driving reactions, place pictures and a local AI model.
 
 bricks:
   - arduino:web_ui
+  - arduino:llm:
+      model: llamacpp:Qwen3.5-0.8B-Q4_0

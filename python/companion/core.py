@@ -386,17 +386,15 @@ class Companion:
             raise ValueError("expected the question as text")
         question = " ".join(text.split())[:300]
         cfg = self.store.data["settings"]["assistant"]
-        if not cfg["enabled"]:
-            self.log("info", "questions are switched off (assistant.enabled in settings.json)", "assistant")
-            return
-        if self.asleep:
-            self.log("info", "he is asleep; turn the ignition on first", "assistant")
-            return
         now = self._clock()
         lang = msg.get("lang")
         if lang not in cfg["languages"]:
             lang = assistant.detect_language(question, cfg["languages"])
         self.log("info", question, "question")
+        if not cfg["enabled"] or self.asleep:  # an answer anyway, without the bubble
+            text = (assistant.SWITCHED_OFF if not cfg["enabled"] else assistant.ASLEEP)[lang]
+            self.send({"type": "answer", "question": question, "text": text, "lang": lang, "source": "none"})
+            return
         self._asking = None  # a new question replaces one the AI model still thinks about
         facts = self._facts()
         answer = assistant.direct_answer(question, lang, facts)

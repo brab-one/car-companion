@@ -20,6 +20,9 @@ UNKNOWN = {"en": "I can't answer that yet.", "de": "Das kann ich noch nicht bean
 NO_MODEL = {"en": "Sorry, I can't think right now.", "de": "Tut mir leid, ich kann gerade nicht nachdenken."}
 NOT_LOCATED = {"en": "I don't know where we are yet.", "de": "Ich weiß noch nicht, wo wir sind."}
 NO_MAP = {"en": "I have no map of this area yet.", "de": "Ich habe noch keine Karte von dieser Gegend."}
+ASLEEP = {"en": "I'm asleep. Turn the ignition on first.", "de": "Ich schlafe. Mach zuerst die Zündung an."}
+SWITCHED_OFF = {"en": "Questions are switched off (assistant.enabled in settings.json).",
+                "de": "Fragen sind ausgeschaltet (assistant.enabled in settings.json)."}
 
 SYSTEM = {
     "en": "You are a small, friendly companion that lives on the dashboard of a car. Answer the driver's "

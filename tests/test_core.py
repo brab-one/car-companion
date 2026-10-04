@@ -238,8 +238,7 @@ class CompanionTest(unittest.TestCase):
         self.send(type="sim_car", ignition=False)
         self.send(type="voice", state="listening")
         self.send(type="ask", text="Where are we?")
-        self.assertEqual((self.brain.status["assistant"], self.sent_of("answer")), ("idle", []))
-        self.assertIn("he is asleep; turn the ignition on first", self.logs())
+        self.assertEqual((self.brain.status["assistant"], self.answer()["text"]), ("idle", assistant.ASLEEP["en"]))
 
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)

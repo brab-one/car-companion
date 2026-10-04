@@ -87,8 +87,8 @@ app (the simulator's phone panel and map stand in for it).
 - [x] 4. Places and location panel with a map and a route player (sunrise/sunset dimming still to do)
 - [x] 5. Configure dialog: places with pictures, and every config file (the chat stub is still to do)
 - [x] Face editor, faces by car data, speech bubble, video and GIF clips, videos for places
-- [x] Questions: typed, answered from the car data and an offline map, or by an AI model
-- [ ] Voice on the board: microphone, your own wake word, Whisper, Piper, App Lab's LLM brick
+- [x] Questions in a chat, answered from the car data and an offline map, or by the AI model on the board
+- [ ] Voice on the board: microphone, your own wake word, Whisper, Piper
 - [ ] 6. LED matrix output on the board
 - [ ] Drawing on the real OLED (measuring the Bridge's speed first)
 
@@ -123,10 +123,12 @@ mood looks, **Car data** for which face goes with which car values.
 
 ## Ask him
 
-Type a question in the simulator's phone panel (**Ask him**), in English or
-German; he answers in the same language, in the speech bubble, a few lines at
-a time. Tick "Read his answers aloud" to hear them with the browser's voice.
-On the board you will ask by voice: say the wake word, then the question.
+Type a question in the **Chat** (in the simulator and on the board's page), in
+English or German. He answers in the same language, in the chat and in the
+speech bubble, a few lines at a time; the chat shows where each answer came
+from and how long it took. Tick "Read his answers aloud" to hear them with the
+browser's voice. Once the board has a microphone you can also ask by voice: say
+the wake word, then the question.
 
 He answers these exactly and at once, from the data:
 
@@ -150,8 +152,10 @@ It writes `assets/poi.json` (not in git); the deploy copies it to the board.
 
 Anything else ("How high is the Santner?", "Tell me about Kastelruth") goes to
 an AI model, with the car's data, where you are and what is around as facts.
-On the board that is App Lab's LLM brick: Qwen 3.5 0.8B on llama.cpp, offline
-(it comes with the voice step). On a PC, give the simulator any
+On the board that is App Lab's LLM brick (`arduino:llm` in `app.yaml`): Qwen
+3.5 0.8B on llama.cpp, offline. `tools/deploy.sh` has App Lab download the
+model (507 MB) onto the board the first time, which takes a few minutes; the
+board needs internet for that. On a PC, give the simulator any
 OpenAI-compatible server, e.g. llama.cpp's `llama-server` with a small model:
 
 ```bash

@@ -57,6 +57,15 @@ push_data "$here/assets/clips" "$APP_DIR/assets/clips" "*.png"
 # flash; unplugging the board in that time leaves them empty. Write them now.
 adb shell sync
 
+# AI models the bricks use (the LLM brick's "model:" in app.yaml) must be on the
+# board before the app starts. App Lab downloads them once, through its daemon.
+for model in $(sed -n 's/^ *model: *\(llamacpp:[^ ]*\).*/\1/p' "$here/app.yaml"); do
+  if ! adb shell "curl -s -m 10 http://127.0.0.1:8800/v1/models/$model" | grep -q '"status":"installed"'; then
+    echo "Downloading the AI model $model onto the board (once; a few minutes) ..."
+    adb shell "curl -sN -X PUT http://127.0.0.1:8800/v1/models/$model" | grep -E 'event: (done|error)' || true
+  fi
+done
+
 echo "Starting the app (it compiles and flashes the sketch each time, about a minute) ..."
 # adb sets TMPDIR to Android's /data/local/tmp, which the board does not have.
 adb shell TMPDIR=/tmp arduino-app-cli app start "$APP_DIR"

@@ -3,6 +3,7 @@
 
 import { CanvasRenderer, forgetPictures } from './render_canvas.js';
 import { PhonePanel } from './panel_phone.js';
+import { ChatPanel } from './panel_chat.js';
 import { CarPanel } from './panel_car.js';
 import { LocationPanel } from './panel_location.js';
 import { ConfigPanel } from './panel_config.js';
@@ -16,6 +17,7 @@ const app = { config: {}, status: null }; // shared with the Configure dialog
 
 const screen = new CanvasRenderer(document.querySelector('#displays'));
 const phone = new PhonePanel(document.querySelector('#phone'), send);
+const chat = new ChatPanel(document.querySelector('#chat-card'), send);
 const car = new CarPanel(document.querySelector('#car'), send);
 const where = new LocationPanel(document.querySelector('#location'), send);
 const configure = new ConfigPanel(document.querySelector('#config'), send, app);
@@ -76,6 +78,7 @@ const handlers = {
   status(m) {
     app.status = m;
     phone.setStatus(m);
+    chat.setStatus(m);
     where.setStatus(m);
     configure.setStatus(m);
   },
@@ -87,7 +90,7 @@ const handlers = {
     // Shown on the display as a speech bubble (part of the scene); later also spoken aloud.
   },
   answer(m) {
-    phone.setAnswer(m);
+    chat.setAnswer(m);
   },
   log(m) {
     log.add(m);

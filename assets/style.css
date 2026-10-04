@@ -93,7 +93,16 @@ input[type="file"] { border: none; padding: 4px 0; }
 
 label { font-size: 13px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
-.ask { display: flex; gap: 8px; margin: 8px 0; }
+/* The chat: your questions on the right, his answers on the left. */
+.chat { display: flex; flex-direction: column; gap: 8px; min-height: 120px; max-height: 340px; overflow-y: auto; }
+.chat .hint { margin: 0; }
+.msg { max-width: 85%; padding: 8px 12px; border-radius: 14px; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.msg.you { align-self: flex-end; color: #001014; background: var(--accent); border-bottom-right-radius: 4px; }
+.msg.you.other { opacity: 0.7; }
+.msg.him { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.msg.waiting { color: var(--muted); font-style: italic; }
+.msg .meta { margin-top: 4px; font-size: 11px; opacity: 0.7; }
+.ask { display: flex; gap: 8px; margin: 10px 0 8px; }
 .ask input { flex: 1; min-width: 0; }
 
 .sliders { display: grid; gap: 4px; margin-top: 10px; }
