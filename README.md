@@ -222,7 +222,20 @@ The map needs internet (Leaflet and OpenStreetMap); the rest works without.
 
 ## Run it on the board
 
-Connect the board to this PC with its USB-C cable, then:
+Everything at once, also to bring the board up to date: connect it to this PC
+with its USB-C cable, then
+
+```bash
+tools/install.sh            # add --phone to install the Android app on your phone too
+```
+
+It runs the steps below in turn: the app (`deploy.sh`), his eyes from power-on
+(`boot_eyes.py`), the wireless Android Auto bridge (`android_auto.sh`), the fast
+start (`fast_start.sh`) and the board helper (`install_board_helper.sh`). The last
+two ask for the board's password; `--no-password` leaves them out. The first
+time, the board must be on your Wi-Fi (the bridge downloads Debian).
+
+Just the app, after a change:
 
 ```bash
 tools/deploy.sh
