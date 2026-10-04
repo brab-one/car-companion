@@ -1,20 +1,25 @@
-// Places tab: add, edit and delete places, each with a picture. A photo you
-// choose is cropped to its middle square and scaled to 128×128 here in the
-// browser, then sent to the companion as a PNG (image_put).
+// Places tab: add, edit and delete places, each with a picture or a video,
+// shown for "Show for (s)" when you drive in. A photo is cropped to its middle
+// square and scaled to 128×128 here in the browser, then sent to the companion
+// as a PNG (image_put). A video or GIF is turned into frames as in the Clips
+// tab (clip_media.js) and sent in parts (clip_put).
 
 import { SIZE, toPanelImage } from './render_canvas.js';
 import { saveConfig, showMessage } from './config_common.js';
+import { FramePlayer, describe, isClipFile, loadFrames, readClip, saveClip } from './clip_media.js';
 
 const NEW_PLACE = { name: '', lat: 46.6, lon: 11.62, radius_m: 1000, caption: '', say: '', show_s: 8, cooldown_min: 60 };
 const NUMBER_FIELDS = ['lat', 'lon', 'radius_m', 'show_s', 'cooldown_min'];
 const TEXT_FIELDS = ['name', 'caption', 'say'];
-const PLACE_ORDER = ['id', 'name', 'lat', 'lon', 'radius_m', 'image', 'caption', 'say', 'show_s', 'cooldown_min'];
+const PLACE_ORDER = ['id', 'name', 'lat', 'lon', 'radius_m', 'image', 'clip', 'caption', 'say', 'show_s', 'cooldown_min'];
 
 export class PlacesEditor {
   constructor(root, ctx) {
     this.ctx = ctx;
     this.selected = -1; // index of the place being edited; -1 is a new place
     this.photo = null;  // canvas with a newly chosen photo, not saved yet
+    this.video = null;  // frames of a newly chosen video or GIF, not saved yet
+    this.reading = null; // the file being read; picking another place drops it
     this.$ = (sel) => root.querySelector(sel);
     this.form = this.$('#place-form');
     this.form.addEventListener('submit', (e) => {
@@ -24,9 +29,8 @@ export class PlacesEditor {
     this.$('#add-place').addEventListener('click', () => this.#edit(-1));
     this.$('#delete-place').addEventListener('click', () => this.#delete());
     this.$('#use-position').addEventListener('click', () => this.#usePosition());
-    this.$('#photo').addEventListener('change', (e) => this.#choosePhoto(e.target.files[0]));
-    this.preview = this.$('#photo-preview');
-    this.preview.width = this.preview.height = SIZE;
+    this.$('#photo').addEventListener('change', (e) => this.#choose(e.target.files[0]));
+    this.player = new FramePlayer(this.$('#photo-preview'));
     this.box = this.$('#place-message');
   }
 
@@ -55,15 +59,44 @@ export class PlacesEditor {
 
   #edit(index) {
     this.selected = index;
-    this.photo = null;
+    this.photo = this.video = this.reading = null;
     this.$('#photo').value = '';
-    const place = index >= 0 ? this.#places()[index] : NEW_PLACE;
+    const place = this.#current();
     for (const field of [...TEXT_FIELDS, ...NUMBER_FIELDS]) this.form.elements[field].value = place[field] ?? '';
     this.$('#place-title').textContent = index >= 0 ? `Edit ${place.name}` : 'New place';
     this.$('#delete-place').hidden = index < 0;
     showMessage(this.box, '');
     this.#renderList();
-    this.#showPicture(place.image ? `images/${encodeURIComponent(place.image)}?v=${Date.now()}` : null);
+    this.#showStored(place);
+  }
+
+  #current() {
+    return this.selected >= 0 ? this.#places()[this.selected] : NEW_PLACE;
+  }
+
+  #note(text) {
+    this.$('#photo-note').textContent = text;
+  }
+
+  // The place's picture or video, as the display shows it.
+  async #showStored(place) {
+    const stillWanted = () => this.#current() === place && !this.photo && !this.video;
+    this.player.show([]);
+    try {
+      if (place.clip) {
+        this.#note(`Video: ${place.clip.frames} frames, ${place.clip.fps} a second, as the display shows them.`);
+        const frames = await loadFrames(place.clip.file, place.clip.frames);
+        if (stillWanted()) this.player.show(frames, place.clip.fps);
+      } else if (place.image) {
+        this.#note('Picture, as the display shows it.');
+        const img = await loadImage(`images/${encodeURIComponent(place.image)}?v=${Date.now()}`);
+        if (stillWanted()) this.player.show([toPanelImage(img)]);
+      } else {
+        this.#note('No picture, video or GIF yet.');
+      }
+    } catch (e) {
+      if (stillWanted()) this.#note(e.message);
+    }
   }
 
   #usePosition() {
@@ -73,33 +106,31 @@ export class PlacesEditor {
     this.form.elements.lon.value = pos.lon;
   }
 
-  async #choosePhoto(file) {
+  // A photo becomes the place's picture, a video or GIF its video; either replaces the other.
+  async #choose(file) {
     if (!file) return;
+    this.photo = this.video = null;
+    const reading = (this.reading = file);
     try {
-      const bitmap = await createImageBitmap(file);
-      const side = Math.min(bitmap.width, bitmap.height); // crop the middle square
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = SIZE;
-      const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
-      this.photo = canvas;
-      this.preview.getContext('2d').putImageData(toPanelImage(canvas), 0, 0);
-      this.$('#photo-note').textContent = 'New picture, saved with the place.';
-    } catch {
-      showMessage(this.box, 'That file is not a picture this browser can read.', 'error');
+      if (isClipFile(file)) {
+        this.#note('Reading frames…');
+        const clip = await readClip(file, (n) => this.reading === reading && this.#note(`Reading frames… ${n}`));
+        if (this.reading !== reading) return; // another place was picked meanwhile
+        this.video = clip;
+        this.player.show(clip.frames, clip.fps);
+        this.#note(`New video: ${describe(clip)}. Saved with the place.`);
+      } else {
+        const photo = await squarePicture(file);
+        if (this.reading !== reading) return;
+        this.photo = photo;
+        this.player.show([toPanelImage(this.photo)]);
+        this.#note('New picture, saved with the place.');
+      }
+    } catch (e) {
+      if (this.reading !== reading) return;
+      this.#note('');
+      showMessage(this.box, e.message, 'error');
     }
-  }
-
-  #showPicture(url) {
-    const ctx = this.preview.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, SIZE, SIZE);
-    this.$('#photo-note').textContent = url ? 'As the display shows it.' : 'No picture yet.';
-    if (!url) return;
-    const img = new Image();
-    img.onload = () => ctx.putImageData(toPanelImage(img), 0, 0);
-    img.src = url;
   }
 
   #read() {
@@ -134,6 +165,14 @@ export class PlacesEditor {
         const reply = await this.ctx.request({ type: 'image_put', name, png_base64: png }, 'image_result');
         if (!reply.ok) return showMessage(this.box, reply.error, 'error');
         place.image = name;
+        delete place.clip;
+      }
+      if (this.video) {
+        const file = `place-${place.id}.png`;
+        await saveClip(this.ctx.request, file, this.video.frames,
+          (i, n) => showMessage(this.box, `Sending part ${i} of ${n}…`));
+        place.clip = { file, frames: this.video.frames.length, fps: this.video.fps };
+        delete place.image;
       }
     } catch (e) {
       return showMessage(this.box, e.message, 'error');
@@ -171,7 +210,33 @@ export class PlacesEditor {
     if (await saveConfig(this.ctx.request, 'places', places, this.box)) {
       this.ctx.app.config.places = places;
       this.#edit(-1);
-      showMessage(this.box, `Deleted ${place.name}. Its picture file stays.`, 'ok');
+      showMessage(this.box, `Deleted ${place.name}. Its picture or video file stays.`, 'ok');
     }
   }
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('The picture is missing in assets/images.'));
+    img.src = url;
+  });
+}
+
+// A photo's middle square, scaled to the display's size.
+async function squarePicture(file) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error('That file is not a picture this browser can read.');
+  }
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+  return canvas;
 }

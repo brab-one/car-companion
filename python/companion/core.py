@@ -20,7 +20,7 @@ from pathlib import Path
 from . import layout, speech, validate
 from .animator import Animator, Tween
 from .car_sim import SCENARIOS, CarSim
-from .clips import ClipFiles, ClipPlayer
+from .clips import ClipFiles, ClipPlayer, frame_at
 from .config_store import ConfigStore
 from .geofence import Geofences
 from .images import Images
@@ -63,7 +63,7 @@ class Companion:
         self.rules = None
         self._apply_config(now)
         self.location = None     # last position from the phone (or the simulator's map)
-        self.picture = None      # (place, until) while a place picture is shown
+        self.place_media = None  # (place, "image" or "clip", start, until) while a place's picture or video shows
         self.speech = None       # (bubble, until) while a speech bubble is shown
         self.lift = Tween(0.0)   # the face moves up while he speaks
         self.asleep = True       # the first tick wakes him up when the ignition is on
@@ -128,8 +128,8 @@ class Companion:
             self._missing_logged = True
             self.log("warn", "Modulino Movement: not found on the Qwiic connector; the sketch keeps looking", "sensor")
         signals = self._signals(now)
-        # What the display shows, most important first: place picture, clip, face.
-        self.clips.update(signals, now, blocked=self.asleep or self.picture is not None)
+        # What the display shows, most important first: a place's picture or clip, a clip, the face.
+        self.clips.update(signals, now, blocked=self.asleep or self.place_media is not None)
         if self.asleep:
             return
         cfg = self.store.data
@@ -187,13 +187,23 @@ class Companion:
         self._active = ids
 
     def _enter_place(self, place, now):
-        self.log("info", f"entered {place['name']}", f"place {place['id']}")
-        if place.get("image") in self.images.names():
-            self.picture = (place, now + place.get("show_s", 8))
-        elif "image" in place:
-            self.log("warn", f"picture {place['image']} not found in assets/images", f"place {place['id']}")
+        source = f"place {place['id']}"
+        self.log("info", f"entered {place['name']}", source)
+        media = None  # a clip comes first; without its file, the picture
+        if "clip" in place:
+            if place["clip"]["file"] in self.clip_files.names():
+                media = "clip"
+            else:
+                self.log("warn", f"clip {place['clip']['file']} not found in assets/clips", source)
+        if media is None and "image" in place:
+            if place["image"] in self.images.names():
+                media = "image"
+            else:
+                self.log("warn", f"picture {place['image']} not found in assets/images", source)
+        if media:
+            self.place_media = (place, media, now, now + place.get("show_s", 8))
         if place.get("say"):
-            self._say(place["say"], f"place {place['id']}", 2, now)
+            self._say(place["say"], source, 2, now)
 
     def _say(self, text, source, level, now):
         """Say a line, if chattiness allows it and the last line was long enough ago."""
@@ -338,17 +348,22 @@ class Companion:
         settings = self.store.data["settings"]
         brightness = self._brightness()
         shape, look, blink = self.animator.update(now)
-        if self.picture and now >= self.picture[1]:
-            self.picture = None
+        if self.place_media and now >= self.place_media[3]:
+            self.place_media = None
         if self.speech and now >= self.speech[1]:
             self.speech = None
             self.lift.to(0.0, now, LIFT_MS)
         if now >= self._display_off_at:
             scene = {"kind": "off"}
-        elif self.picture:
-            place = self.picture[0]
-            scene = {"kind": "image", "image": place["image"], "caption": place.get("caption", ""),
-                     "brightness": brightness}
+        elif self.place_media:
+            place, media, start, _ = self.place_media
+            if media == "clip":
+                clip = place["clip"]
+                scene = {"kind": "clip", "file": clip["file"], "frame": frame_at(clip, now - start),
+                         "frames": clip["frames"], "brightness": brightness}
+            else:
+                scene = {"kind": "image", "image": place["image"], "caption": place.get("caption", ""),
+                         "brightness": brightness}
         elif self.clips.current:
             clip = self.clips.current[0]
             scene = {"kind": "clip", "file": clip["file"], "frame": self.clips.frame(now),

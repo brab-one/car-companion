@@ -160,15 +160,17 @@
             </div>
             <div class="row">
               <label>Radius (m) <input name="radius_m" type="number" min="10" max="200000" required /></label>
-              <label>Show picture (s) <input name="show_s" type="number" min="1" max="300" required /></label>
+              <label>Show for (s) <input name="show_s" type="number" min="1" max="300" required /></label>
               <label>Quiet after (min) <input name="cooldown_min" type="number" min="0" max="10080" required /></label>
             </div>
             <div class="picture">
               <canvas id="photo-preview"></canvas>
               <div>
-                <label>Picture <input id="photo" type="file" accept="image/*" /></label>
+                <label>Picture, video or GIF <input id="photo" type="file" accept="image/*,video/*" /></label>
                 <p id="photo-note" class="hint"></p>
-                <p class="hint">Any photo: the middle square is cut out and scaled to 128 × 128.</p>
+                <p class="hint">A photo: its middle square is cut out and scaled to 128 × 128. A video or
+                  GIF: scaled down to fit when bigger (never up), up to 10 s, looping for "Show for".
+                  A place has one or the other; a new one replaces the old.</p>
               </div>
             </div>
             <label>Caption <input name="caption" /></label>
@@ -183,8 +185,8 @@
       </div>
 
       <div id="tab-clips" class="tab-pane" hidden>
-        <p class="hint">Videos and GIFs shown now and then. Place pictures come first; while no clip plays,
-          the face shows.</p>
+        <p class="hint">Videos and GIFs shown now and then. A place's picture or video comes first; while
+          no clip plays, the face shows.</p>
         <div class="places">
           <div class="place-list">
             <div id="clip-list" class="list"></div>

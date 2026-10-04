@@ -23,10 +23,11 @@ phone app, the car (OBD dongle) and the phone's GPS. All the features below work
   a visor slams down that lifts again 8 s after slowing down.
 - **Feels the board move**: with a Modulino Movement, shaking the board makes him angry.
 - **Talks**: short lines in a speech bubble on the display. How chatty he is can be set.
-- **Knows places**: drive into a place and he shows its picture for a few seconds, with a line.
+- **Knows places**: drive into a place and he shows its picture, video or GIF for as long as you
+  set, with a line.
 - **Clips**: add any video or GIF. It is scaled down to the display and shows every few minutes
   for a few seconds, optionally only when, say, you drive faster than 20 km/h.
-- **Clear priorities**: a place picture comes first, then a clip, then the face.
+- **Clear priorities**: a place's picture or video comes first, then a clip, then the face.
 - **Sleeps**: when the ignition goes off he falls asleep, and the display turns off.
 - **Everything in JSON files**: faces, animations, rules, places, clips and settings, checked
   with clear error messages. A broken file falls back to the last good version, and changes
@@ -79,7 +80,7 @@ app (the simulator's phone panel and map stand in for it).
 - [x] 3. Car panel and `rules.json`: speed, revs, temperatures, g-forces, scenarios; plus the Modulino Movement
 - [x] 4. Places and location panel with a map and a route player (sunrise/sunset dimming still to do)
 - [x] 5. Configure dialog: places with pictures, and every config file (the chat stub is still to do)
-- [x] Face editor, faces by car data, speech bubble, video and GIF clips
+- [x] Face editor, faces by car data, speech bubble, video and GIF clips, videos for places
 - [ ] 6. LED matrix output on the board
 - [ ] Drawing on the real OLED (measuring the Bridge's speed first)
 
@@ -95,12 +96,12 @@ app (the simulator's phone panel and map stand in for it).
 | Driving with cold oil (below 50 °C) | worried |
 | Anything else | neutral, an occasional glance |
 | Hard braking, redline | surprised for a moment |
-| Entering a place | its picture for a few seconds, and a line |
+| Entering a place | its picture or video for a few seconds, and a line |
 | Ignition off | falls asleep; the display goes off 20 s later |
 
 What the display shows, most important first:
 
-1. **A place picture**, when you enter a place, for its "Show picture (s)" (Configure, Places).
+1. **A place's picture or video**, when you enter a place, for its "Show for (s)" (Configure, Places).
 2. **A clip** (a video or GIF), each one every few minutes for a few seconds (Configure, Clips).
 3. **The face**, with the moods and animations the rules choose.
 
@@ -143,7 +144,8 @@ The page:
     a row is kept after the value leaves its range, and an optional line. "⋯" sets the animations
     played when a row starts and when it ends. The highest matching row wins; ↑ ↓ change the
     order. Active rows are marked while you test.
-  - **Places**: add and edit places with their pictures.
+  - **Places**: add and edit places, each with a picture, a video or a GIF. A video or GIF is
+    scaled down like a clip and loops for the place's "Show for" time.
   - **Clips**: add videos and GIFs. Choose any file: it is scaled down to fit the display when it
     is bigger (never up), centred on black, and kept to 10 s at 10 frames a second, with a
     preview. Set how long it shows, how many minutes until it comes again, and optionally only
@@ -205,7 +207,7 @@ The logic in `python/companion/` has no Arduino imports, so the tests run on any
 |---|---|
 | `config/` | All behaviour: faces, animations, rules, places, settings. |
 | `assets/images/` | Place pictures, 128 × 128 PNG. |
-| `assets/clips/` | Clips: frames of 128 × 128 under each other in one tall PNG. |
+| `assets/clips/` | Clips and places' videos: frames of 128 × 128 under each other in one tall PNG. |
 | `python/main.py` | Board glue: WebUI and Bridge, connected to the Companion. |
 | `python/companion/` | The logic, plain Python. `core.py` is the place to start. |
 | `sketch/` | The microcontroller: reads the Modulino Movement; later the LED matrix and OLED. |
@@ -322,16 +324,22 @@ the warnings come first, then speed, then the Modulino.
 ### Add a place (places.json)
 
 Easiest in the simulator: Configure, Places, Add place. Click the map first
-and use "Use the map position", choose any photo (it is cropped to the middle
-square and scaled to 128 × 128 in the browser), and save. By hand:
+and use "Use the map position", choose a photo (it is cropped to the middle
+square and scaled to 128 × 128 in the browser) or a video or GIF (scaled down
+like a clip), and save. By hand:
 
 ```json
 {"id": "kastelruth", "name": "Kastelruth / Castelrotto", "lat": 46.567, "lon": 11.567, "radius_m": 2000,
  "image": "schlern.png", "caption": "Schlern", "say": "There's the Schlern.", "show_s": 8, "cooldown_min": 60}
 ```
 
-The picture must be a 128 × 128 PNG in `assets/images/`. A place triggers
-when you come closer than `radius_m`, and is left only beyond
+The picture must be a 128 × 128 PNG in `assets/images/`. Instead of `image`,
+a place can have a video: `"clip": {"file": "place-kastelruth.png", "frames": 30, "fps": 10}`,
+a tall PNG in `assets/clips/` like the clips below. It loops for `show_s`
+seconds. With both, the video plays, and the picture is only shown when the
+video's file is missing.
+
+A place triggers when you come closer than `radius_m`, and is left only beyond
 `radius_m × (1 + place_exit_margin)`, so GPS jitter at the edge does not
 trigger it again; after that it stays quiet for `cooldown_min` (the log says
 so). `python3 tools/make_placeholders.py` redraws the two placeholder pictures.
@@ -349,7 +357,7 @@ other, each 128 × 128) and an entry like:
 
 `show_s` is how long it plays (looping), `every_min` how long until it comes
 again, `when` (optional) conditions like in rules.json. When several clips are
-due, the first in the file plays first. A place picture cuts a clip short; it
+due, the first in the file plays first. A place's picture or video cuts a clip short; it
 then waits for its next turn.
 
 ### settings.json

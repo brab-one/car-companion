@@ -21,7 +21,8 @@ EYE_RANGES = {"w": (1, 128), "h": (1, 128), "r": (0, 64), "slant": (-64, 64), "c
 MOOD_KEYS = (*EYE_KEYS, "gap", "blink_s", "visor", "left", "right")
 STEP_KEYS = ("mood", "look", "blink", "visor", "glint", "ms", "ease", "hold_ms", "repeat", "anim")
 RULE_KEYS = ("id", "note", "when", "mood", "idle", "play", "play_end", "say", "level", "cooldown_s", "hold_s")
-PLACE_KEYS = ("id", "name", "lat", "lon", "radius_m", "image", "caption", "say", "show_s", "cooldown_min")
+PLACE_KEYS = ("id", "name", "lat", "lon", "radius_m", "image", "clip", "caption", "say", "show_s", "cooldown_min")
+PLACE_CLIP_KEYS = ("file", "frames", "fps")
 CLIP_KEYS = ("id", "name", "file", "frames", "fps", "show_s", "every_min", "enabled", "when")
 
 
@@ -254,6 +255,9 @@ def _check_places(data, errors):
         if "image" in place and not (isinstance(place["image"], str) and IMAGE_NAME.fullmatch(place["image"])):
             errors.append(f'{path}.image: expected a file name like "schlern.png"'
                           f" (small letters, digits, - and _), got {_show(place['image'])}")
+        if "clip" in place and _object(place["clip"], f"{path}.clip", errors):
+            _known_keys(place["clip"], PLACE_CLIP_KEYS, f"{path}.clip", errors)
+            _clip_file(place["clip"], f"{path}.clip", errors)
         for key in ("caption", "say"):
             if key in place and not isinstance(place[key], str):
                 errors.append(f"{path}.{key}: expected text, got {_show(place[key])}")
@@ -282,10 +286,7 @@ def _check_clips(data, errors):
         _known_keys(clip, CLIP_KEYS, path, errors)
         if not (isinstance(clip.get("name"), str) and clip["name"].strip()):
             errors.append(f"{path}.name: expected text, got {_show(clip.get('name'))}")
-        if not (isinstance(clip.get("file"), str) and IMAGE_NAME.fullmatch(clip["file"])):
-            errors.append(f'{path}.file: expected a file name like "wheel.png", got {_show(clip.get("file"))}')
-        _range(clip.get("frames"), f"{path}.frames", errors, 1, 300, whole=True)
-        _number(clip.get("fps"), f"{path}.fps", errors, 1, 30)
+        _clip_file(clip, path, errors)
         _number(clip.get("show_s"), f"{path}.show_s", errors, 1, 300)
         _number(clip.get("every_min"), f"{path}.every_min", errors, 0.5, 1440)
         if "enabled" in clip and not isinstance(clip["enabled"], bool):
@@ -299,6 +300,18 @@ def _check_clips(data, errors):
                     parse_condition(condition)
                 except ValueError as e:
                     errors.append(f"{path}.when[{j}]: {e}")
+
+
+def _clip_file(clip, path, errors):
+    """file, frames and fps of a clip, in clips.json or a place's "clip"."""
+    if not (isinstance(clip.get("file"), str) and IMAGE_NAME.fullmatch(clip["file"])):
+        errors.append(f'{path}.file: expected a file name like "wheel.png", got {_show(clip.get("file"))}')
+    frames = clip.get("frames")
+    if isinstance(frames, bool) or not isinstance(frames, int):
+        errors.append(f"{path}.frames: expected a whole number, got {_show(frames)}")
+    else:
+        _number(frames, f"{path}.frames", errors, 1, 300)
+    _number(clip.get("fps"), f"{path}.fps", errors, 1, 30)
 
 
 # ---- settings.json ----------------------------------------------------------
@@ -387,6 +400,9 @@ def cross_check(data, image_names, clip_names=()):
         if "image" in place and place["image"] not in image_names:
             warnings.append(f'places.json: places.{place["id"]}.image: "{place["image"]}"'
                             " is not in assets/images")
+        if "clip" in place and place["clip"]["file"] not in clip_names:
+            warnings.append(f'places.json: places.{place["id"]}.clip.file: "{place["clip"]["file"]}"'
+                            " is not in assets/clips")
     for clip in data["clips"]["clips"]:
         path = f"clips.json: clips.{clip['id']}"
         if clip["file"] not in clip_names:

@@ -119,6 +119,30 @@ class CompanionTest(unittest.TestCase):
         self.send(type="clip_play", id="wheel")  # "Play now"
         self.assertEqual(self.brain.scene["kind"], "clip")
 
+    def test_a_place_video_plays_for_its_time_and_clips_wait(self):
+        places = json.loads((ROOT / "config" / "places.json").read_text())
+        kastelruth = places["places"][0]
+        del kastelruth["image"]
+        kastelruth.update(clip={"file": "wheel.png", "frames": 16, "fps": 12}, show_s=5)
+        self.send(type="config_set", name="places", data=places)
+        self.send(type="location", **KASTELRUTH)
+        scene = self.brain.scene
+        self.assertEqual((scene["kind"], scene["file"], scene["frames"]), ("clip", "wheel.png", 16))
+        self.send(type="clip_play", id="wheel")  # a clip from clips.json waits its turn
+        self.run_for(0.2)
+        self.assertNotEqual(self.brain.scene["frame"], scene["frame"])  # it plays
+        self.assertEqual((self.brain.status["place"], self.brain.status["clip"]), ("kastelruth", None))
+        self.run_for(5)
+        self.assertEqual(self.brain.scene["kind"], "eyes")
+
+    def test_a_place_without_its_video_file_shows_its_picture(self):
+        places = json.loads((ROOT / "config" / "places.json").read_text())
+        places["places"][0]["clip"] = {"file": "gone.png", "frames": 10, "fps": 10}
+        self.send(type="config_set", name="places", data=places)
+        self.send(type="location", **KASTELRUTH)
+        self.assertEqual((self.brain.scene["kind"], self.brain.scene["image"]), ("image", "schlern.png"))
+        self.assertIn("clip gone.png not found in assets/clips", self.logs("warn"))
+
     def test_cold_oil_worries_him_while_driving(self):
         self.send(type="sim_car", oil_c=30, speed_kmh=50)
         self.run_for(1)

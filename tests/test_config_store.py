@@ -120,6 +120,22 @@ class ConfigStoreTest(unittest.TestCase):
             "animations.json: animations.test.steps[0].visor: 1.5 is outside the allowed range 0 to 1.2",
             "animations.json: animations.test.steps[1].glint: 3 is outside the allowed range -1 to 2"])
 
+    def test_places_can_have_a_clip(self):
+        places = json.loads((CONFIG / "places.json").read_text())
+        places["places"][0]["clip"] = {"file": "nope.png", "frames": 16, "fps": 12}
+        places["places"][1]["clip"] = {"file": "geisler.gif", "frames": [1, 2], "speed": 3}
+        _, errors = check("places", places)
+        self.assertEqual(errors, [
+            "places.json: places.villnoess.clip.speed: unknown field (allowed: file, frames, fps)",
+            'places.json: places.villnoess.clip.file: expected a file name like "wheel.png", got "geisler.gif"',
+            "places.json: places.villnoess.clip.frames: expected a whole number, got [1, 2]",
+            "places.json: places.villnoess.clip.fps: expected a number, got null"])
+        del places["places"][1]["clip"]
+        data = {name: check(name, json.loads((CONFIG / f"{name}.json").read_text()))[0] for name in NAMES}
+        data["places"] = check("places", places)[0]
+        self.assertEqual(cross_check(data, IMAGES, CLIPS),
+                         ['places.json: places.kastelruth.clip.file: "nope.png" is not in assets/clips'])
+
     def test_settings_only_need_what_they_change(self):
         self.write("settings.json", '{"fps": 20}')
         s = self.store()

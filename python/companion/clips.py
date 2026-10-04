@@ -6,8 +6,10 @@ frame, in parts. ClipFiles stores those in assets/clips/.
 
 ClipPlayer decides when a clip plays: each enabled clip in clips.json comes
 every `every_min` minutes and loops for `show_s` seconds, while its optional
-"when" conditions hold (same as in rules.json). What the display shows, most
-important first: place picture, clip, face (see Companion._update_outputs)."""
+"when" conditions hold (same as in rules.json). Places can have a clip too,
+shown when you drive in. What the display shows, most important first: a
+place's picture or clip, a clip from clips.json, the face (see
+Companion._update_outputs)."""
 
 import base64
 import binascii
@@ -24,6 +26,11 @@ MAX_FRAMES = 300
 MAX_BYTES = 8_000_000
 MAX_PARTS = 64
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def frame_at(clip, seconds):
+    """The frame of a clip ({"frames", "fps", ...}) to show `seconds` after it started; it loops."""
+    return int(seconds * clip["fps"]) % clip["frames"]
 
 
 class ClipFiles:
@@ -124,7 +131,7 @@ class ClipPlayer:
     def frame(self, now):
         """The frame of the current clip to show now (it loops)."""
         clip, start, _ = self.current
-        return int((now - start) * clip["fps"]) % clip["frames"]
+        return frame_at(clip, now - start)
 
     def _start(self, clip, now):
         self.current = (clip, now, now + clip["show_s"])
