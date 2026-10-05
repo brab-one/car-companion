@@ -141,6 +141,13 @@ He answers these exactly and at once, from the data:
 | Which mountain is that? · Welcher Berg ist das? | the peaks that look biggest from where you are |
 | How high is the Santner? · Wie weit ist es nach Bozen? | Santner is 2414 m high, 4.6 km south of here. |
 | What time is it? · What car is it? | It's 13:16. · We're in a Subaru BRZ. (`assistant.car`) |
+| Navigate to Bozen · Fahr mich zur nächsten Tankstelle · Take me home | Starting navigation to Bozen on your phone. |
+
+Navigation: he looks the destination up on his own map (your places, the map
+data, the nearest fuel or charging station) or passes the words on to Google
+Maps ("home" is the home saved there), and sends `navigate` to the phone app,
+which starts Google Maps' turn-by-turn navigation. On the board's page the chat
+shows an "Open in Google Maps" link instead, which does the same on a phone.
 
 For the map, download the points of interest around your places once (towns,
 peaks, passes, lakes, castles, sights, fuel and charging stations; needs
